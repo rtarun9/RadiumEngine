@@ -8,6 +8,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/Bin")
 
+
 include_directories(
   ${PROJECT_NAME}
   Src/Include
@@ -25,16 +26,10 @@ target_include_directories(
     ${PROJECT_SOURCE_DIR}/Src/Include
 )
 
-#target_precompile_headers(${PROJECT_NAME} 
-#    PUBLIC
-#    <string>
-#    <memory>
-#    <cmath>
-#    <chrono>
-#    <algorithm>
-#
-#    PRIVATE
-#    ${PROJECT_SOURCE_DIR}/Src/Include/Pch.hpp
-#)
+target_precompile_headers(${PROJECT_NAME} 
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}/Src/Include/Pch.hpp
+)
 
-target_link_libraries(${PROJECT_NAME} d3d12.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
+target_link_libraries(${PROJECT_NAME} d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
+set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

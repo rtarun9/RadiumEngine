@@ -1,540 +1,398 @@
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
+#include "Pch.hpp"
 
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <d3dcompiler.h>
-#include <DirectXMath.h>
-
-#include "../Include/d3dx12.h"
-
-#include <wrl.h>
-
-#include <algorithm>
-#include <chrono>
-#include <string>
-
-#include "../Include/Helpers.hpp"
-
-namespace wrl = Microsoft::WRL;
-namespace dx = DirectX;
-
-// Application control variables
 constexpr LPCWSTR WINDOW_CLASS_NAME = L"Base Window Class";
+LPCWSTR g_WindowTitle = L"Radium Engine";
 
-constexpr uint8_t NUMBER_OF_FRAMES = 2;
-
-uint32_t g_ClientWidth = 1280;
-uint32_t g_ClientHeight = 720;
-
-bool g_IsInitialized = false;
-
-// SwapChain control variables
-bool g_Vsync = true;
-bool g_TearingSupported = false;
-bool g_FullScreen = false;
-
-// Windows related variables
 HWND g_WindowHandle = 0;
-RECT g_WindowRect = {};
 
-// DirectX Objects
-wrl::ComPtr<ID3D12Device2> g_Device;
+LONG g_ClientWidth = 1080;
+LONG g_ClientHeight = 720;
 
-wrl::ComPtr<IDXGISwapChain4> g_SwapChain;
-wrl::ComPtr<ID3D12Resource> g_BackBuffers[NUMBER_OF_FRAMES];
+const bool g_EnableVsync = TRUE;
 
-wrl::ComPtr<ID3D12GraphicsCommandList> g_CommandList;
-wrl::ComPtr<ID3D12CommandAllocator> g_CommandAllocator[NUMBER_OF_FRAMES];
-wrl::ComPtr<ID3D12CommandQueue> g_CommandQueue;
+wrl::ComPtr<ID3D11Device> g_Device;
+wrl::ComPtr<ID3D11DeviceContext> g_DeviceContext;
+wrl::ComPtr<IDXGISwapChain> g_SwapChain;
 
-wrl::ComPtr<ID3D12DescriptorHeap> g_RTVDescriptorHeap;
+wrl::ComPtr<ID3D11DepthStencilView> g_DepthStencilView;
+wrl::ComPtr<ID3D11Texture2D> g_DepthStencilBuffer;
+wrl::ComPtr<ID3D11RenderTargetView> g_RenderTargetView;
 
-UINT g_RTVDescriptorSize = 0;
-UINT g_CurrentBackBufferIndex = 0;
+wrl::ComPtr<ID3D11DepthStencilState> g_DepthStencilState;
+wrl::ComPtr<ID3D11RasterizerState> g_RasterizerState;
 
-// Sync objects
-wrl::ComPtr<ID3D12Fence> g_Fence;
-uint64_t g_FenceValue = 0; // Next value to signal command queue
-uint64_t g_FenceFrameValues[NUMBER_OF_FRAMES] = {};	// The value needed to wait on for each frame
-HANDLE g_FenceEvent; // OS evenet object used to stall thread 
+D3D11_VIEWPORT g_Viewport = {};
 
-// Function forward declerations
-LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam);
+wrl::ComPtr<ID3D11InputLayout> g_InputLayout;
+wrl::ComPtr<ID3D11Buffer> g_VertexBuffer;
+wrl::ComPtr<ID3D11Buffer> g_IndexBuffer;
 
-void EnableDebugLayer()
+wrl::ComPtr<ID3D11VertexShader> g_VertexShader;
+wrl::ComPtr<ID3D11PixelShader> g_PixelShader;
+
+enum ConstantBuffers
 {
-#ifdef _DEBUG
-	wrl::ComPtr<ID3D12Debug> debugInterface;
-	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-	debugInterface->EnableDebugLayer();
-#endif
+	CB_Applcation,
+	CB_Frame,
+	CB_Object,
+	ConstantBufferCount
+};
+
+wrl::ComPtr<ID3D11Buffer> g_ConstantBuffers[ConstantBuffers::ConstantBufferCount] = {};
+
+dx::XMMATRIX g_ModelMatrix;
+dx::XMMATRIX g_ViewMatrix;
+dx::XMMATRIX g_ProjectionMatrix;
+
+struct Vertex
+{
+	dx::XMFLOAT3 position;
+	dx::XMFLOAT3 color;
+};
+
+Vertex g_CubeVertices[8] =
+{
+	{ dx::XMFLOAT3(-1.0f, -1.0f, -1.0f),	dx::XMFLOAT3(0.0f, 0.0f, 0.0f) },
+	{ dx::XMFLOAT3(-1.0f,  1.0f, -1.0f),	dx::XMFLOAT3(0.0f, 1.0f, 0.0f) },
+	{ dx::XMFLOAT3(1.0f,  1.0f, -1.0f),		dx::XMFLOAT3(1.0f, 1.0f, 0.0f) },
+	{ dx::XMFLOAT3(1.0f, -1.0f, -1.0f),		dx::XMFLOAT3(1.0f, 0.0f, 0.0f) },
+	{ dx::XMFLOAT3(-1.0f, -1.0f,  1.0f),	dx::XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	{ dx::XMFLOAT3(-1.0f,  1.0f,  1.0f),	dx::XMFLOAT3(0.0f, 1.0f, 1.0f) },
+	{ dx::XMFLOAT3(1.0f,  1.0f,  1.0f),		dx::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ dx::XMFLOAT3(1.0f, -1.0f,  1.0f),		dx::XMFLOAT3(1.0f, 0.0f, 1.0f) } 
+};
+
+uint32_t g_CubeIndices[36] =
+{
+	0, 1, 2, 0, 2, 3,
+	4, 6, 5, 4, 7, 6,
+	4, 5, 1, 4, 1, 0,
+	3, 2, 6, 3, 6, 7,
+	1, 5, 6, 1, 6, 2,
+	4, 0, 3, 4, 3, 7
+};
+
+std::chrono::high_resolution_clock g_Clock;
+std::chrono::high_resolution_clock::time_point g_PreviousFrameTime;
+std::chrono::high_resolution_clock::time_point g_CurrentFrameTime;
+double g_DeltaTime;
+
+LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+	case WM_DESTROY:
+	{
+		::PostQuitMessage(0);
+	}break;
+
+	case WM_KEYDOWN:
+	{
+		switch (wParam)
+		{
+		case VK_ESCAPE:
+		{
+			::DestroyWindow(windowHandle);
+		}break;
+		}
+	}break;
+
+	default:
+	{
+		::DefWindowProcW(windowHandle, message, wParam, lParam);
+	}break;
+	}
+
+	return ::DefWindowProcW(windowHandle, message, wParam, lParam);
 }
 
-void RegisterAppWindowClass(HINSTANCE instance, LPCWSTR className)
+void CreateAppWindow(HINSTANCE instance)
 {
 	WNDCLASSEXW windowClass = {};
 	windowClass.cbSize = sizeof(WNDCLASSEXW);
-	windowClass.cbClsExtra = 0;
-	windowClass.cbWndExtra = 0;
 	windowClass.style = CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = WindowProc;
-	windowClass.lpszClassName = className;
-	windowClass.lpszMenuName = nullptr;
 	windowClass.hInstance = instance;
+	windowClass.lpszClassName = WINDOW_CLASS_NAME;
+	windowClass.lpszMenuName = nullptr;
+	windowClass.hCursor = nullptr;
+	windowClass.hbrBackground = nullptr;
 	windowClass.hIcon = nullptr;
 	windowClass.hIconSm = nullptr;
-	windowClass.hCursor = nullptr;
 
-	if (!(::RegisterClassExW(&windowClass)))
+	if (!::RegisterClassExW(&windowClass))
 	{
 		ErrorMessage(L"Failed to register window class");
 	}
-}
 
-
-HWND CreateAppWindow(HINSTANCE instance, LPCWSTR windowTitle, LPCWSTR windowClassName, uint32_t width, uint32_t height)
-{
-	int screenWidth = ::GetSystemMetrics(SM_CXSCREEN);
-	int screenHeight = ::GetSystemMetrics(SM_CYSCREEN);
-
-	RECT windowRect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
-	::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, 0);
+	RECT windowRect = { 0, 0, g_ClientWidth, g_ClientHeight };
+	::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	int windowWidth = windowRect.right - windowRect.left;
 	int windowHeight = windowRect.bottom - windowRect.top;
 
-	// Center screen by calculation top left corner position : Clamp to 0, 0 as well.
-	int windowXPos = std::max<int>(0, (screenWidth - windowWidth) / 2);
-	int windowYPos = std::max<int>(0, (screenHeight - windowHeight) / 2);
+	g_WindowHandle = ::CreateWindowExW(0, WINDOW_CLASS_NAME, g_WindowTitle, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
+		0, 0, instance, 0);
 
-	HWND windowHandle = ::CreateWindowExW(0, windowClassName, windowTitle,
-		WS_OVERLAPPEDWINDOW, windowXPos, windowYPos, windowWidth, windowHeight, 0, 0, instance, 0);
-
-	if (!windowHandle)
+	if (!g_WindowHandle)
 	{
 		ErrorMessage(L"Failed to create window");
 	}
-
-	return windowHandle;
 }
 
-// Get compatable adapter (GPU)
-wrl::ComPtr<IDXGIAdapter4> GetAdapter()
+wrl::ComPtr<ID3DBlob> LoadShader(const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
 {
-	wrl::ComPtr<IDXGIFactory4> factory;
-	UINT createFactoryFlags = 0;
+	wrl::ComPtr<ID3DBlob> shaderBlob;
+	wrl::ComPtr<ID3DBlob> errorBlob;
+
+	UINT flags = 0;
 
 #if _DEBUG
-	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+	flags = D3DCOMPILE_DEBUG;
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-
-	wrl::ComPtr<IDXGIAdapter1> adapter1;
-	wrl::ComPtr<IDXGIAdapter4> adapter4;
+	HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, entryPoint.c_str(), shaderProfile.c_str(), flags, 0, &shaderBlob, &errorBlob);
 	
-	// Find adapter with height video memory, can create d3d12 device and one that is not a software adapter.
-	SIZE_T maxDedicatedVideoMemory = 0;
-	for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; i++)
+	if (FAILED(hr))
 	{
-		DXGI_ADAPTER_DESC1 adapterDesc = {};
-		adapter1->GetDesc1(&adapterDesc);
-
-		if ((adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
-			(SUCCEEDED(D3D12CreateDevice(adapter1.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)) &&
-			(adapterDesc.DedicatedVideoMemory > maxDedicatedVideoMemory)))
+		if (hr == 0x80070003)
 		{
-			maxDedicatedVideoMemory = adapterDesc.DedicatedVideoMemory;
-			ThrowIfFailed(adapter1.As(&adapter4));
+			ErrorMessage(std::string("Could not find file"));
+		}
+		if (errorBlob.Get())
+		{
+			std::string errorMessage = (char*)errorBlob->GetBufferPointer();
+			ErrorMessage(errorMessage);
+
+			return nullptr;
 		}
 	}
-
-	return adapter4;
+	
+	return shaderBlob;
 }
 
-wrl::ComPtr<ID3D12Device2> CreateDevice(wrl::ComPtr<IDXGIAdapter4> adapter)
+void LoadContent()
 {
-	wrl::ComPtr<ID3D12Device2> device;
-	ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device)));
+	D3D11_BUFFER_DESC vertexBufferDesc = {};
+	vertexBufferDesc.ByteWidth = sizeof(g_CubeVertices);
+	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
-#if _DEBUG
-	wrl::ComPtr<ID3D12InfoQueue> infoQueue;
-	if (SUCCEEDED(device.As(&infoQueue)))
+	D3D11_SUBRESOURCE_DATA vertexSubresourceData = {};
+	vertexSubresourceData.pSysMem = g_CubeVertices;
+
+	ThrowIfFailed(g_Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &g_VertexBuffer));
+
+	D3D11_BUFFER_DESC indexBufferDesc = {};
+	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBufferDesc.ByteWidth = sizeof(g_CubeIndices);
+	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	indexBufferDesc.CPUAccessFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA indicesSubresouceData = {};
+	indicesSubresouceData.pSysMem = g_CubeIndices;
+
+	ThrowIfFailed(g_Device->CreateBuffer(&indexBufferDesc, &indicesSubresouceData, &g_IndexBuffer));
+
+	D3D11_BUFFER_DESC constantBufferDesc;
+	constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	constantBufferDesc.CPUAccessFlags = 0;
+	constantBufferDesc.ByteWidth = sizeof(dx::XMMATRIX);
+	constantBufferDesc.MiscFlags = 0;
+
+	ThrowIfFailed(g_Device->CreateBuffer(&constantBufferDesc, nullptr, &g_ConstantBuffers[ConstantBuffers::CB_Applcation]));
+	ThrowIfFailed(g_Device->CreateBuffer(&constantBufferDesc, nullptr, &g_ConstantBuffers[ConstantBuffers::CB_Frame]));
+	ThrowIfFailed(g_Device->CreateBuffer(&constantBufferDesc, nullptr, &g_ConstantBuffers[ConstantBuffers::CB_Object]));
+
+	wrl::ComPtr<ID3DBlob> vertexBlob = LoadShader(L"../Shaders/TestShader.hlsl", "VsMain", "vs_5_0");
+	wrl::ComPtr<ID3DBlob> pixelBlob = LoadShader(L"../Shaders/TestShader.hlsl", "PsMain", "ps_5_0");
+
+	ThrowIfFailed(g_Device->CreateVertexShader(vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), nullptr, &g_VertexShader));
+	ThrowIfFailed(g_Device->CreatePixelShader(pixelBlob->GetBufferPointer(), pixelBlob->GetBufferSize(), nullptr, &g_PixelShader));
+
+	D3D11_INPUT_ELEMENT_DESC inputElements[] =
 	{
-		infoQueue->GetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR);
-		infoQueue->GetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING);
-		infoQueue->GetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION);
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, position), D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, color), D3D11_INPUT_PER_VERTEX_DATA, 0},
+	};
 
-		// Ignore warnings with severity level of info. 
-		D3D12_MESSAGE_SEVERITY ignoreSeverities[] =
-		{
-			D3D12_MESSAGE_SEVERITY_INFO
-		};
+	ThrowIfFailed(g_Device->CreateInputLayout(inputElements, _countof(inputElements), vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), &g_InputLayout));
 
-		D3D12_INFO_QUEUE_FILTER infoQueueFilter = {};
-		infoQueueFilter.DenyList.NumSeverities = _countof(ignoreSeverities);
-		infoQueueFilter.DenyList.pSeverityList = ignoreSeverities;
+	RECT clientRect = {};
+	::GetClientRect(g_WindowHandle, &clientRect);
 
-		ThrowIfFailed(infoQueue->PushStorageFilter(&infoQueueFilter));
-	}
+	float clientWidth = static_cast<float>(clientRect.right - clientRect.left);
+	float clientHeight = static_cast<float>(clientRect.bottom - clientRect.top);
 
-#endif
+	g_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), clientWidth / clientHeight, 0.1f, 100.0f);
 
-	return device;
+	g_DeviceContext->UpdateSubresource(g_ConstantBuffers[ConstantBuffers::CB_Applcation].Get(), 0, nullptr, &g_ProjectionMatrix, 0, 0);
 }
 
-wrl::ComPtr<ID3D12CommandQueue> CreateCommandQueue(wrl::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT)
+void Init()
 {
-	wrl::ComPtr<ID3D12CommandQueue> commandQueue;
-
-	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
-	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	commandQueueDesc.NodeMask = 0;
-	commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-	commandQueueDesc.Type = type;
-
-	ThrowIfFailed(device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue)));
-
-	return commandQueue;
-}
-
-bool CheckTearingSupport()
-{
-	bool allowTearing = false;
-
-	wrl::ComPtr<IDXGIFactory5> factory;
-	if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))))
-	{
-		if (FAILED(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))))
-		{
-			allowTearing = false;
-		}
-	}
-
-	return allowTearing;
-}
-
-wrl::ComPtr<IDXGISwapChain4> CreateSwapChain(HWND windowHandle, wrl::ComPtr<ID3D12CommandQueue> commandQueue, uint32_t width, uint32_t height)
-{
-	wrl::ComPtr<IDXGISwapChain4> swapChain4;
-	wrl::ComPtr<IDXGIFactory4> factory;
-
-	UINT createFactoryFlags = 0;
-#if _DEBUG
-	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-
-	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-	swapChainDesc.Width = width;
-	swapChainDesc.Height = height;
-	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.Stereo = FALSE;
+	// Init swapchain and device and device context
+	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+	swapChainDesc.BufferCount = 2;
+	swapChainDesc.BufferDesc.Width = 0;
+	swapChainDesc.BufferDesc.Height = 0;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.OutputWindow = g_WindowHandle;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
-	swapChainDesc.BufferCount = NUMBER_OF_FRAMES;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	swapChainDesc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	swapChainDesc.Windowed = TRUE;
+	swapChainDesc.Flags = 0;
 
-	wrl::ComPtr<IDXGISwapChain1> swapChain1;
-	ThrowIfFailed(factory->CreateSwapChainForHwnd(commandQueue.Get(), windowHandle, &swapChainDesc, nullptr, nullptr, &swapChain1));
+	UINT createDeviceFlags = 0;
 
-	// Disable functionality for full screen toggle via ALT + ENTER
-	ThrowIfFailed(factory->MakeWindowAssociation(windowHandle, DXGI_MWA_NO_ALT_ENTER));
-	
-	ThrowIfFailed(swapChain1.As(&swapChain4));
+#ifdef _DEBUG
+	createDeviceFlags = D3D11_CREATE_DEVICE_DEBUG;
+#endif
 
-	return swapChain4;
-}
+	ThrowIfFailed(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, createDeviceFlags,
+		nullptr, 0, D3D11_SDK_VERSION, &swapChainDesc, &g_SwapChain, &g_Device, nullptr, &g_DeviceContext));
 
-wrl::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(wrl::ComPtr<ID3D12Device2> device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount)
-{
-	wrl::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
-	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NodeMask = 0;
-	descriptorHeapDesc.Type = type;
-	descriptorHeapDesc.NumDescriptors = descriptorCount;
-	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	// Create render target view for swapchain backbuffer.
+	wrl::ComPtr<ID3D11Texture2D> backBuffer;
+	ThrowIfFailed(g_SwapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
 
-	ThrowIfFailed(device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap)));
+	ThrowIfFailed(g_Device->CreateRenderTargetView(backBuffer.Get(), nullptr, &g_RenderTargetView));
 
-	return descriptorHeap;
-}
+	// Create depth stencil buffer and view.
+	D3D11_TEXTURE2D_DESC depthStencilBufferDesc = {};
+	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthStencilBufferDesc.ArraySize = 1;
+	depthStencilBufferDesc.MipLevels = 1;
+	depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthStencilBufferDesc.SampleDesc.Count = 1;
+	depthStencilBufferDesc.SampleDesc.Quality = 0;
+	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthStencilBufferDesc.CPUAccessFlags = 0;
+	depthStencilBufferDesc.Width = g_ClientWidth;
+	depthStencilBufferDesc.Height = g_ClientHeight;
 
-void CreateRenderTargetViews(wrl::ComPtr<ID3D12Device2> device, wrl::ComPtr<IDXGISwapChain4> swapChain, wrl::ComPtr<ID3D12DescriptorHeap> descriptorHeap)
-{
-	auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	ThrowIfFailed(g_Device->CreateTexture2D(&depthStencilBufferDesc, nullptr, &g_DepthStencilBuffer));
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	ThrowIfFailed(g_Device->CreateDepthStencilView(g_DepthStencilBuffer.Get(), nullptr, &g_DepthStencilView));
 
-	for (int i = 0; i < NUMBER_OF_FRAMES; i++)
-	{
-		wrl::ComPtr<ID3D12Resource> backBuffer;
-		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+	D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = {};
+	depthStencilStateDesc.DepthEnable = TRUE;
+	depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	depthStencilStateDesc.StencilEnable = FALSE;
 
-		device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
-		g_BackBuffers[i] = backBuffer;
+	ThrowIfFailed(g_Device->CreateDepthStencilState(&depthStencilStateDesc, &g_DepthStencilState));
 
-		rtvHandle.Offset(rtvDescriptorSize);
-	}
-}
+	D3D11_RASTERIZER_DESC rasterizerStateDesc = {};
+	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
+	rasterizerStateDesc.DepthBias = 0;
+	rasterizerStateDesc.DepthBiasClamp = 0.0f;
+	rasterizerStateDesc.DepthClipEnable = TRUE;
+	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerStateDesc.FrontCounterClockwise = FALSE;
+	rasterizerStateDesc.ScissorEnable = FALSE;
+	rasterizerStateDesc.SlopeScaledDepthBias = 0.0f;
 
-wrl::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(wrl::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
-{
-	wrl::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	ThrowIfFailed(device->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)));
+	ThrowIfFailed(g_Device->CreateRasterizerState(&rasterizerStateDesc, &g_RasterizerState));
 
-	return commandAllocator;
-}
+	g_Viewport = {};
+	g_Viewport.TopLeftX = 0.0f;
+	g_Viewport.TopLeftY = 0.0f;
+	g_Viewport.Width = g_ClientWidth;
+	g_Viewport.Height = g_ClientHeight;
+	g_Viewport.MinDepth = 0.0f;
+	g_Viewport.MaxDepth = 1.0f;
 
-wrl::ComPtr<ID3D12GraphicsCommandList> CreateCommandList(wrl::ComPtr<ID3D12Device2> device, wrl::ComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type)
-{
-	wrl::ComPtr<ID3D12GraphicsCommandList> commandList;
-
-	ThrowIfFailed(device->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-	
-	// In render loop fisrt operation performed on allocator and list is reset, which needs the list to be closed before hand.
-	ThrowIfFailed(commandList->Close());
-
-	return commandList;
-}
-
-wrl::ComPtr<ID3D12Fence> CreateFence(wrl::ComPtr<ID3D12Device2> device)
-{
-	wrl::ComPtr<ID3D12Fence> fence;
-	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-
-	return fence;
-}
-
-HANDLE CreateEventHandle()
-{
-	HANDLE fenceEvent;
-	
-	fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (!fenceEvent)
-	{
-		ErrorMessage(L"Failed to create fence event");
-	}
-
-	return fenceEvent;
-}
-
-uint64_t Signal(wrl::ComPtr<ID3D12CommandQueue> commandQueue, wrl::ComPtr<ID3D12Fence> fence, uint64_t& fenceValue)
-{
-	uint64_t fenceValueToSignal = fenceValue++;
-	ThrowIfFailed(commandQueue->Signal(fence.Get(), fenceValueToSignal));
-
-	// Value CPU thread should wait on until GPU inflight frame has value >= this.
-	return fenceValueToSignal;
-}
-
-void WaitForFenceValue(wrl::ComPtr<ID3D12Fence> fence, uint64_t fenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration = std::chrono::milliseconds::max())
-{
-	if (fence->GetCompletedValue() < fenceValue)
-	{
-		ThrowIfFailed(fence->SetEventOnCompletion(fenceValue, fenceEvent));
-		::WaitForSingleObject(fenceEvent, static_cast<DWORD>(duration.count()));
-	}
-}
-
-void Flush(wrl::ComPtr<ID3D12CommandQueue> commandQueue, wrl::ComPtr<ID3D12Fence> fence, uint64_t& fenceValue, HANDLE fenceEvent)
-{
-	uint64_t fenceValueForSignal = Signal(commandQueue, fence, fenceValue);
-	WaitForFenceValue(fence, fenceValueForSignal, fenceEvent);
+	// Set states to pipelnie
+	g_DeviceContext->RSSetViewports(1u, &g_Viewport);
+	g_DeviceContext->OMSetRenderTargets(1u, g_RenderTargetView.GetAddressOf(), g_DepthStencilView.Get());
 }
 
 void Update()
 {
-	static uint64_t frameCounter = 0;
-	static double elapsedSeconds = 0.0f;
-	static std::chrono::high_resolution_clock clock;
+	dx::XMVECTOR eyePosition = dx::XMVectorSet(0.0f, 0.0f, -10.0f, 1.0f);
+	dx::XMVECTOR focusPosition = dx::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+	dx::XMVECTOR upDirection = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	static auto previousFrameTime= clock.now();
+	g_ViewMatrix = dx::XMMatrixLookAtLH(eyePosition, focusPosition, upDirection);
+	
+	g_DeviceContext->UpdateSubresource(g_ConstantBuffers[CB_Frame].Get(), 0, nullptr, &g_ViewMatrix, 0, 0);
 
-	frameCounter++;
-	auto time = clock.now();
-	auto deltaTime = time - previousFrameTime;
-	time = previousFrameTime;
+	static float angle = 0.0f;
+	angle += 90.0f * g_DeltaTime;
 
-	elapsedSeconds += deltaTime.count() * 1e-9;
-	if (elapsedSeconds > 1.0f)
-	{
-		char buffer[500];
-		auto fps = frameCounter / elapsedSeconds;
-		sprintf_s(buffer, 500, "FPS : %f\n", fps);
-		OutputDebugStringA(buffer);
+	dx::XMVECTOR rotationAxis = dx::XMVectorSet(0.0f, 1.0f, 1.0f, 0.0f);
 
-		frameCounter = 0;
-		elapsedSeconds = 0.0f;
-	}
+	g_ModelMatrix = dx::XMMatrixRotationAxis(rotationAxis, angle);
+	g_DeviceContext->UpdateSubresource(g_ConstantBuffers[CB_Object].Get(), 0, nullptr, &g_ModelMatrix, 0, 0);
 }
 
 void Render()
 {
-	auto commandAllocator = g_CommandAllocator[g_CurrentBackBufferIndex];
-	auto backBuffer = g_BackBuffers[g_CurrentBackBufferIndex];
+	g_DeviceContext->OMSetRenderTargets(1u, g_RenderTargetView.GetAddressOf(), g_DepthStencilView.Get());
 
-	commandAllocator->Reset();
-	g_CommandList->Reset(commandAllocator.Get(), nullptr);
+	float clearColor[] = { 0.7f, 0.5f, 0.0f, 1.0f };
+	g_DeviceContext->ClearRenderTargetView(g_RenderTargetView.Get(), clearColor);
+	g_DeviceContext->ClearDepthStencilView(g_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0.0f);
 
-	CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	g_CommandList->ResourceBarrier(1, &resourceBarrier);
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
 
-	float clearColor[] = { 0.4f, 0.8f, 0.7f, 1.0f };
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(g_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_CurrentBackBufferIndex, g_RTVDescriptorSize);
-	g_CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+	g_DeviceContext->IASetVertexBuffers(0, 1, g_VertexBuffer.GetAddressOf(), &stride, &offset);
+	g_DeviceContext->IASetInputLayout(g_InputLayout.Get());
+	g_DeviceContext->IASetIndexBuffer(g_IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+	g_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	g_DeviceContext->VSSetShader(g_VertexShader.Get(), nullptr, 0);
+	g_DeviceContext->VSSetConstantBuffers(0, 3, g_ConstantBuffers[0].GetAddressOf());
+	g_DeviceContext->PSSetShader(g_PixelShader.Get(), nullptr, 0);
 
-	resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	g_CommandList->ResourceBarrier(1, &resourceBarrier);
+	g_DeviceContext->OMSetDepthStencilState(g_DepthStencilState.Get(), 1);
+	g_DeviceContext->RSSetState(g_RasterizerState.Get());
 
-	ThrowIfFailed(g_CommandList->Close());
-
-	ID3D12CommandList* const commandLists[] =
-	{
-		g_CommandList.Get()
-	};
-
-
-	g_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
-	UINT syncInterval = g_Vsync ? 1 : 0;
-	UINT presentFlag = g_TearingSupported && !g_Vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-
-	ThrowIfFailed(g_SwapChain->Present(syncInterval, presentFlag));
-
-	g_FenceFrameValues[g_CurrentBackBufferIndex] = Signal(g_CommandQueue, g_Fence, g_FenceValue);
-
-	g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-
-	WaitForFenceValue(g_Fence, g_FenceFrameValues[g_CurrentBackBufferIndex], g_FenceEvent);
+	g_DeviceContext->DrawIndexed(_countof(g_CubeIndices), 0, 0);
+	g_SwapChain->Present(1, 0);
 }
 
-void Resize(uint32_t width, uint32_t height)
+int Run()
 {
-	if (g_ClientHeight != height || g_ClientWidth != width)
-	{
-		g_ClientHeight = std::max<uint32_t>(height, 1u);
-		g_ClientWidth = std::max<uint32_t>(width, 1u);
+	MSG message = {};
 
-		Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
-
-		for (int i = 0; i < NUMBER_OF_FRAMES; i++)
-		{
-			g_BackBuffers[i].Reset();
-			g_FenceFrameValues[i] = g_FenceFrameValues[g_CurrentBackBufferIndex];
-		}
-
-		DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-		ThrowIfFailed(g_SwapChain->GetDesc(&swapChainDesc));
-		ThrowIfFailed(g_SwapChain->ResizeBuffers(NUMBER_OF_FRAMES, g_ClientWidth, g_ClientHeight, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
-
-		g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-
-		CreateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
-	}
-}
-
-LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	if (g_IsInitialized)
-	{
-		switch (message)
-		{
-		case WM_PAINT:
-		{
-			Update();
-			Render();
-		}break;
-
-		case WM_SIZE:
-		{
-			RECT clientRect = {};
-			::GetClientRect(g_WindowHandle, &clientRect);
-
-			int width = clientRect.right - clientRect.left;
-			int height = clientRect.bottom - clientRect.top;
-
-			Resize(width, height);
-		}break;
-
-		case WM_DESTROY:
-		{
-			::PostQuitMessage(0);
-		}break;
-
-		default:
-		{
-			return ::DefWindowProcW(windowHandle, message, wParam, lParam);
-		}
-		}
-	}
-	else
-	{
-		return ::DefWindowProcW(windowHandle, message, wParam, lParam);
-	}
-
-	return 0;
-}
-
-int CALLBACK wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
-{
-	EnableDebugLayer();
-
-	g_TearingSupported = CheckTearingSupport();
-
-	RegisterAppWindowClass(instance, WINDOW_CLASS_NAME);
-	g_WindowHandle = CreateAppWindow(instance, L"<Radium Engine>", WINDOW_CLASS_NAME, g_ClientWidth, g_ClientHeight);
-
-	wrl::ComPtr<IDXGIAdapter4> adapter = GetAdapter();
-
-	g_Device = CreateDevice(adapter);
-
-	g_CommandQueue = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-	g_SwapChain = CreateSwapChain(g_WindowHandle, g_CommandQueue, g_ClientWidth, g_ClientHeight);
-
-	g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-
-	g_RTVDescriptorHeap = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1u);
-	g_RTVDescriptorSize = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	CreateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
-
-	for (int i = 0; i < NUMBER_OF_FRAMES; i++)
-	{
-		g_CommandAllocator[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	}
-
-	g_CommandList = CreateCommandList(g_Device, g_CommandAllocator[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-	g_Fence = CreateFence(g_Device);
-	g_FenceEvent = CreateEventHandle();
-
-	g_IsInitialized = true;
-
-	::ShowWindow(g_WindowHandle, SW_SHOW);
-
-	MSG message = { };
 	while (message.message != WM_QUIT)
 	{
-		if (::PeekMessage(&message, NULL, 0, 0, PM_REMOVE))
+		if (::PeekMessageW(&message, 0, 0, 0, PM_REMOVE))
 		{
-			::TranslateMessage(&message);
-			::DispatchMessage(&message);
+			TranslateMessage(&message);
+			DispatchMessageW(&message);
 		}
+
+		g_CurrentFrameTime = g_Clock.now();
+		g_DeltaTime = (g_CurrentFrameTime - g_PreviousFrameTime).count() * 1e-9;
+		g_PreviousFrameTime = g_CurrentFrameTime;
+
+		Update();
+		Render();
 	}
 
-	Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
+	return static_cast<int>(message.wParam);
+}
 
-	::CloseHandle(g_FenceEvent);
+int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
+{
+	CreateAppWindow(instance);
 
-	return 0;
+	Init();
+	LoadContent();
+
+	ShowWindow(g_WindowHandle, SW_SHOWDEFAULT);
+	return Run();
 }

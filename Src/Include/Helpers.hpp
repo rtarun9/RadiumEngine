@@ -17,3 +17,8 @@ static inline void ErrorMessage(LPCWSTR error)
 {
 	MessageBoxW(0, error, L"ERROR", MB_OK);
 }
+
+static inline void ErrorMessage(const std::string& error)
+{
+	MessageBoxA(0, error.c_str(), "ERROR", MB_OK);
+}
