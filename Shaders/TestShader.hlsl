@@ -31,7 +31,7 @@ PSInput VsMain(VSInput input)
 	
     PSInput psInput;
     psInput.color = float4(input.color, 1.0f);
-    psInput.position = mul(mvpMatrix, mul(input.position, 1.0f));
+    psInput.position = mul(mvpMatrix, float4(input.position, 1.0f));
 	
     return psInput;
 }
