@@ -25,7 +25,7 @@ template <typename T>
 class VertexBuffer : public Buffer
 {
 public:
-	void Init(wrl::ComPtr<ID3D11Device> device, const std::vector<T>& vertices)
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<T>& vertices)
 	{
 		m_Stride = sizeof(T);
 		m_Offset = 0;
@@ -42,7 +42,7 @@ public:
 		ThrowIfFailed(device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &m_Buffer));
 	}
 
-	void Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext)
+	void Bind(wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 	{
 		deviceContext->IASetVertexBuffers(0u, 1u, m_Buffer.GetAddressOf(), &m_Stride, &m_Offset);
 	}
@@ -55,7 +55,7 @@ public:
 class IndexBuffer : public Buffer
 {
 public:
-	void Init(wrl::ComPtr<ID3D11Device> device, const std::vector<uint32_t>& indices)
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices)
 	{
 		D3D11_BUFFER_DESC indexBufferDesc = {};
 		indexBufferDesc.ByteWidth = std::size(indices) * sizeof(uint32_t);
@@ -69,7 +69,7 @@ public:
 		ThrowIfFailed(device->CreateBuffer(&indexBufferDesc, &indexSubresourceData, &m_Buffer));
 	}
 
-	void Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext)
+	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 	{
 		deviceContext->IASetIndexBuffer(m_Buffer.Get(), DXGI_FORMAT_R32_UINT, 0u);
 	}
@@ -81,7 +81,7 @@ template <typename T>
 class ConstantBuffer : public Buffer
 {
 public:
-	void Init(wrl::ComPtr<ID3D11Device> device)
+	void Init(const wrl::ComPtr<ID3D11Device>& device)
 	{
 		D3D11_BUFFER_DESC constantBufferDesc = {};
 		constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -93,18 +93,18 @@ public:
 		ThrowIfFailed(device->CreateBuffer(&constantBufferDesc, nullptr, &m_Buffer));
 	}
 
-	void Update(wrl::ComPtr<ID3D11DeviceContext> deviceContext, const T& data)
+	void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, const T& data)
 	{
 		deviceContext->UpdateSubresource(m_Buffer.Get(), 0, nullptr, &data, 0, 0);
 		m_Data = data;
 	}
 
-	void BindVS(wrl::ComPtr<ID3D11DeviceContext> deviceContext, UINT startSlot = 0, UINT count = 1)
+	void BindVS(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, UINT startSlot = 0, UINT count = 1)
 	{
 		deviceContext->VSSetConstantBuffers(startSlot, count, m_Buffer.GetAddressOf());
 	}
 
-	void BindPS(wrl::ComPtr<ID3D11DeviceContext> deviceContext, UINT startSlot = 0, UINT count = 1)
+	void BindPS(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, UINT startSlot = 0, UINT count = 1)
 	{
 		deviceContext->PSSetConstantBuffers(startSlot, count, m_Buffer.GetAddressOf());
 	}

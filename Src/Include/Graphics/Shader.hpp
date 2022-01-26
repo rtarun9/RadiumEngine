@@ -16,9 +16,9 @@ protected:
 class VertexShader : public Shader
 {
 public:
-	void Init(wrl::ComPtr<ID3D11Device> device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "vs_5_0");
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "vs_5_0");
 
-	void Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext);
+	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 public:
 	wrl::ComPtr<ID3D11VertexShader> m_VertexShader;
@@ -27,9 +27,9 @@ public:
 class PixelShader : public Shader
 {
 public:
-	void Init(wrl::ComPtr<ID3D11Device> device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "ps_5_0");
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "ps_5_0");
 
-	void Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext);
+	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 public:
 	wrl::ComPtr<ID3D11PixelShader> m_PixelShader;

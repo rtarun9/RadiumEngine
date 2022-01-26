@@ -32,5 +32,5 @@ target_precompile_headers(${PROJECT_NAME}
     ${PROJECT_SOURCE_DIR}/Src/Include/Pch.hpp
 )
 
-target_link_libraries(${PROJECT_NAME} d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib winmm.lib) 
+target_link_libraries(${PROJECT_NAME} d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

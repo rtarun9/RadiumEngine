@@ -1,7 +1,10 @@
 #include "Pch.hpp"
 
+#include "Camera.hpp"
+
 #include "Graphics/Shader.hpp"
 #include "Graphics/Buffer.hpp"
+#include "Graphics/InputLayout.hpp"
 
 class Engine
 {
@@ -35,6 +38,7 @@ class Engine
 
 public:
 	Engine(const std::wstring& title, uint32_t width, uint32_t height);
+	~Engine();
 
 	void OnInit();
 	void OnUpdate(float deltaTime);
@@ -60,10 +64,15 @@ private:
 
 	float m_AspectRatio;
 
+	float m_ClientWidth;
+	float m_ClientHeight;
+
 	// D3D11 Objects
 	wrl::ComPtr<ID3D11Device> m_Device;
 	wrl::ComPtr<ID3D11DeviceContext> m_DeviceContext;
 	wrl::ComPtr<IDXGISwapChain> m_SwapChain;
+
+	wrl::ComPtr<ID3D11Debug> m_Debug;
 
 	wrl::ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
 	wrl::ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
@@ -75,7 +84,7 @@ private:
 	D3D11_VIEWPORT m_Viewport = {};
 
 	// Application specific variables.
-	wrl::ComPtr<ID3D11InputLayout> m_InputLayout;
+	InputLayout m_InputLayout;
 	VertexBuffer<Vertex> m_VertexBuffer;
 	IndexBuffer m_IndexBuffer;
 
@@ -88,4 +97,5 @@ private:
 	dx::XMMATRIX m_ViewMatrix;
 	dx::XMMATRIX m_ProjectionMatrix;
 
+	Camera m_Camera;
 };

@@ -36,26 +36,26 @@ wrl::ComPtr<ID3DBlob> Shader::GetBytecodeBlob()
 }
 
 
-void VertexShader::Init(wrl::ComPtr<ID3D11Device> device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
 {
 	m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
 	ThrowIfFailed(device->CreateVertexShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_VertexShader));
 }
 
-void VertexShader::Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext)
+void VertexShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 {
 	deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
 }
 
-void PixelShader::Init(wrl::ComPtr<ID3D11Device> device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
 {
 	m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
 	ThrowIfFailed(device->CreatePixelShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_PixelShader));
 }
 
-void PixelShader::Bind(wrl::ComPtr<ID3D11DeviceContext> deviceContext)
+void PixelShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 {
 	deviceContext->PSSetShader(m_PixelShader.Get(), nullptr, 0u);
 }

@@ -11,7 +11,7 @@ std::chrono::high_resolution_clock::time_point Application::s_PreviousFrameTime 
 std::chrono::high_resolution_clock::time_point Application::s_CurrentFrameTime = {};
 double Application::s_DeltaTime = 0.0f;
 
-int Application::Run(Engine *engine, HINSTANCE instance)
+int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
 {
 	// Register window class and create window class.
 	WNDCLASSEXW windowClass = {};
@@ -42,7 +42,7 @@ int Application::Run(Engine *engine, HINSTANCE instance)
 	s_WindowHandle = ::CreateWindowExW(0,
 		WINDOW_CLASS_NAME, engine->GetTitle().c_str(), WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
-		0, 0, instance, engine);
+		0, 0, instance, engine.get());
 
 	if (!s_WindowHandle)
 	{

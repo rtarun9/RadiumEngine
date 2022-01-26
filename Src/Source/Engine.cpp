@@ -9,19 +9,23 @@ Engine::Engine(const std::wstring& title, uint32_t width, uint32_t height)
 	m_AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 }
 
+Engine::~Engine()
+{
+}
+
 void Engine::OnInit()
 {
 	RECT clientRect = {};
 	::GetWindowRect(Application::GetWindowHandle(), &clientRect);
 
-	uint32_t clientWidth = clientRect.right - clientRect.left;
-	uint32_t clientHeight = clientRect.bottom - clientRect.top;
+	m_ClientWidth = clientRect.right - clientRect.left;
+	m_ClientHeight = clientRect.bottom - clientRect.top;
 
 	// Init swapchain and device and device context
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	swapChainDesc.BufferCount = 2;
-	swapChainDesc.BufferDesc.Width = clientWidth;
-	swapChainDesc.BufferDesc.Height = clientHeight;
+	swapChainDesc.BufferDesc.Width = m_ClientWidth;
+	swapChainDesc.BufferDesc.Height = m_ClientHeight;
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
@@ -44,6 +48,9 @@ void Engine::OnInit()
 	ThrowIfFailed(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, createDeviceFlags,
 		nullptr, 0, D3D11_SDK_VERSION, &swapChainDesc, &m_SwapChain, &m_Device, nullptr, &m_DeviceContext));
 
+#ifdef _DEBUG
+	ThrowIfFailed(m_Device->QueryInterface(__uuidof(ID3D11Debug), &m_Debug));
+#endif
 
 	// Create render target view for swapchain backbuffer.
 	wrl::ComPtr<ID3D11Texture2D> backBuffer;
@@ -61,8 +68,8 @@ void Engine::OnInit()
 	depthStencilBufferDesc.SampleDesc.Quality = 0;
 	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	depthStencilBufferDesc.CPUAccessFlags = 0;
-	depthStencilBufferDesc.Width = clientWidth;
-	depthStencilBufferDesc.Height = clientHeight;
+	depthStencilBufferDesc.Width = m_ClientWidth;
+	depthStencilBufferDesc.Height = m_ClientHeight;
 
 	ThrowIfFailed(m_Device->CreateTexture2D(&depthStencilBufferDesc, nullptr, &m_DepthStencilBuffer));
 
@@ -91,8 +98,8 @@ void Engine::OnInit()
 	m_Viewport = {};
 	m_Viewport.TopLeftX = 0.0f;
 	m_Viewport.TopLeftY = 0.0f;
-	m_Viewport.Width = clientWidth;
-	m_Viewport.Height = clientHeight;
+	m_Viewport.Width = m_ClientWidth;
+	m_Viewport.Height = m_ClientHeight;
 	m_Viewport.MinDepth = 0.0f;
 	m_Viewport.MaxDepth = 1.0f;
 
@@ -101,11 +108,9 @@ void Engine::OnInit()
 
 void Engine::OnUpdate(float deltaTime)
 {
-	dx::XMVECTOR eyePosition = dx::XMVectorSet(0.0f, 0.0f, -10.0f, 1.0f);
-	dx::XMVECTOR focusPosition = dx::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-	dx::XMVECTOR upDirection = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	m_Camera.Update(deltaTime);
 
-	m_ViewMatrix = dx::XMMatrixLookAtLH(eyePosition, focusPosition, upDirection);
+	m_ViewMatrix = m_Camera.GetViewMatrix();
 
 	m_ConstantBuffers[ConstantBuffers::CB_Frame].Update(m_DeviceContext, m_ViewMatrix);
 
@@ -127,11 +132,8 @@ void Engine::OnRender()
 	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), clearColor);
 	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-
 	m_VertexBuffer.Bind(m_DeviceContext);
-	m_DeviceContext->IASetInputLayout(m_InputLayout.Get());
+	m_InputLayout.Bind(m_DeviceContext);
 	m_IndexBuffer.Bind(m_DeviceContext);
 	m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -139,7 +141,6 @@ void Engine::OnRender()
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].BindVS(m_DeviceContext, ConstantBuffers::CB_Applcation);
 	m_ConstantBuffers[ConstantBuffers::CB_Frame].BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 	m_ConstantBuffers[ConstantBuffers::CB_Object].BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
-
 
 	m_PixelShader.Bind(m_DeviceContext);
 
@@ -152,17 +153,18 @@ void Engine::OnRender()
 
 void Engine::OnDestroy()
 {
-
+	m_DeviceContext->ClearState();
+	m_DeviceContext->Flush();
 }
 
 void Engine::OnKeyDown(uint32_t keycode)
 {
-
+	m_Camera.HandleInput(keycode, true);
 }
 
 void Engine::OnKeyUp(uint32_t keycode)
 {
-
+	m_Camera.HandleInput(keycode, false);
 }
 
 void Engine::LoadContent()
@@ -177,21 +179,12 @@ void Engine::LoadContent()
 	m_VertexShader.Init(m_Device, L"../Shaders/TestShader.hlsl", "VsMain");
 	m_PixelShader.Init(m_Device, L"../Shaders/TestShader.hlsl", "PsMain");
 
-	D3D11_INPUT_ELEMENT_DESC inputElements[] =
-	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, position), D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, color), D3D11_INPUT_PER_VERTEX_DATA, 0},
-	};
+	m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+	m_InputLayout.AddInputElement("COLOR", DXGI_FORMAT_R32G32B32_FLOAT);
 
-	ThrowIfFailed(m_Device->CreateInputLayout(inputElements, _countof(inputElements), m_VertexShader.GetBytecodeBlob()->GetBufferPointer(), m_VertexShader.GetBytecodeBlob()->GetBufferSize(), &m_InputLayout));
+	m_InputLayout.Init(m_Device, m_VertexShader.GetBytecodeBlob());
 
-	RECT clientRect = {};
-	::GetClientRect(Application::GetWindowHandle(), &clientRect);
-
-	float clientWidth = static_cast<float>(clientRect.right - clientRect.left);
-	float clientHeight = static_cast<float>(clientRect.bottom - clientRect.top);
-
-	m_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), clientWidth / clientHeight, 0.1f, 100.0f);
+	m_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 100.0f);
 
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].Update(m_DeviceContext, m_ProjectionMatrix);
 }

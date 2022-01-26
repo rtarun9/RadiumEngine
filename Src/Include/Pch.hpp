@@ -17,7 +17,7 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 
-#include <wrl.h>
+#include <wrl/client.h>
 
 // STIL includes.
 #include <algorithm>
@@ -31,3 +31,6 @@
 
 namespace wrl = Microsoft::WRL;
 namespace dx = DirectX;
+
+using namespace Microsoft::WRL;
+using namespace DirectX;

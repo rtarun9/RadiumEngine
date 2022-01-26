@@ -7,7 +7,7 @@ class Engine;
 class Application
 {
 public:
-	[[nodiscard]] static int Run(Engine* engine, HINSTANCE instance);
+	[[nodiscard]] static int Run(std::shared_ptr<Engine> engine, HINSTANCE instance);
 	[[nodiscard]] static HWND GetWindowHandle();
 
 private:
