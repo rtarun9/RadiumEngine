@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 // Namespace aliases and global headers.
 #include "Helpers.hpp"

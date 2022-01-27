@@ -2,6 +2,7 @@
 
 #include "Pch.hpp"
 
+// NOTE : CB_Object is only used because of its numerical value : each mesh has its own transform constant buffer which is per object (essentially a Constant Buffer of type CB_Object).
 enum ConstantBuffers
 {
 	CB_Applcation,
@@ -52,10 +53,10 @@ public:
 	}
 
 public:
-	UINT m_Stride;
-	UINT m_Offset;
+	UINT m_Stride = 0;
+	UINT m_Offset = 0;
 
-	UINT m_VerticesCount;
+	UINT m_VerticesCount = 0;
 };
 
 class IndexBuffer : public Buffer

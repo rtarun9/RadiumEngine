@@ -3,6 +3,8 @@
 #include "Application.hpp"
 #include "Engine.hpp"
 
+#include "imgui.h"
+#include <imgui_impl_win32.h>
 
 HWND Application::s_WindowHandle = 0;
 
@@ -10,6 +12,10 @@ std::chrono::high_resolution_clock Application::s_Clock = {};
 std::chrono::high_resolution_clock::time_point Application::s_PreviousFrameTime = {};
 std::chrono::high_resolution_clock::time_point Application::s_CurrentFrameTime = {};
 double Application::s_DeltaTime = 0.0f;
+
+// Forward declare message handler from imgui_impl_win32.cpp.
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 
 int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
 {
@@ -84,6 +90,11 @@ HWND Application::GetWindowHandle()
 
 LRESULT CALLBACK Application::WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(windowHandle, message, wParam, lParam))
+	{
+		return true;
+	}
+
 	Engine* engine = reinterpret_cast<Engine*>(GetWindowLongPtrW(windowHandle, GWLP_USERDATA));
 
 	switch (message)

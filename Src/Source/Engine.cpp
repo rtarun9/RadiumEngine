@@ -113,18 +113,35 @@ void Engine::OnUpdate(float deltaTime)
 	m_ViewMatrix = m_Camera.GetViewMatrix();
 
 	m_ConstantBuffers[ConstantBuffers::CB_Frame].Update(m_DeviceContext, m_ViewMatrix);
-
-	static float angle = 0.0f;
-	angle += deltaTime;
-
-	dx::XMVECTOR rotationAxis = dx::XMVectorSet(0.0f, 1.0f, 1.0f, 0.0f);
-
-	m_ModelMatrix = dx::XMMatrixScaling(10.f, 10.f, 10.0f);
-	m_ConstantBuffers[ConstantBuffers::CB_Object].Update(m_DeviceContext, m_ModelMatrix);
 }
 
 void Engine::OnRender()
 {
+	m_UIManager.FrameBegin();
+	ImGui::Begin("Scene Graph");
+	for (auto& gameObjects : m_GameObjects)
+	{
+		if (ImGui::TreeNode(gameObjects.first.c_str()))
+		{
+			ImGui::SliderFloat3("Translation", &gameObjects.second.m_Transform.translation.x, -10.0f, 10.0f);
+			ImGui::SliderFloat3("Rotation", &gameObjects.second.m_Transform.rotation.x, -180.0f, 180.0f);
+			ImGui::SliderFloat3("Scale", &gameObjects.second.m_Transform.scale.x, 0.0f, 10.0f);
+			ImGui::TreePop();
+		}
+
+		gameObjects.second.UpdateTransformComponent(m_DeviceContext);
+	}
+
+	if (ImGui::Button("Add cube"))
+	{
+		std::string objectName = "Cube " + std::to_string(m_GameObjects.size());
+		Mesh mesh;
+		mesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
+		m_GameObjects.insert({ objectName, mesh });
+	}
+
+	ImGui::End();
+
 	m_DeviceContext->OMSetRenderTargets(1u, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 	m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 
@@ -133,24 +150,32 @@ void Engine::OnRender()
 	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
 	m_InputLayout.Bind(m_DeviceContext);
-	m_CubeMesh.m_VertexBuffer.Bind(m_DeviceContext);
 
-	m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	for (auto& gameObject : m_GameObjects)
+	{
+		auto& object = gameObject.second;
 
-	m_VertexShader.Bind(m_DeviceContext);
-	m_ConstantBuffers[ConstantBuffers::CB_Applcation].BindVS(m_DeviceContext, ConstantBuffers::CB_Applcation);
-	m_ConstantBuffers[ConstantBuffers::CB_Frame].BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
-	m_ConstantBuffers[ConstantBuffers::CB_Object].BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
+		object.m_VertexBuffer.Bind(m_DeviceContext);
 
-	m_PixelShader.Bind(m_DeviceContext);
+		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	m_Sampler.Bind(m_DeviceContext);
-	m_WoodTexture.Bind(m_DeviceContext);
+		m_VertexShader.Bind(m_DeviceContext);
+		m_ConstantBuffers[ConstantBuffers::CB_Applcation].BindVS(m_DeviceContext, ConstantBuffers::CB_Applcation);
+		m_ConstantBuffers[ConstantBuffers::CB_Frame].BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 
-	m_DeviceContext->RSSetState(m_RasterizerState.Get());
-	m_DeviceContext->RSSetViewports(1u, &m_Viewport);
+		object.m_TransformConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
+		m_PixelShader.Bind(m_DeviceContext);
 
-	m_CubeMesh.Draw(m_DeviceContext);
+		m_Sampler.Bind(m_DeviceContext);
+		m_WoodTexture.Bind(m_DeviceContext);
+
+		m_DeviceContext->RSSetState(m_RasterizerState.Get());
+		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
+
+		object.Draw(m_DeviceContext);
+	}
+	
+	m_UIManager.Render();
 	m_SwapChain->Present(1, 0);
 }
 
@@ -158,6 +183,8 @@ void Engine::OnDestroy()
 {
 	m_DeviceContext->ClearState();
 	m_DeviceContext->Flush();
+
+	m_UIManager.Close();
 }
 
 void Engine::OnKeyDown(uint32_t keycode)
@@ -172,8 +199,7 @@ void Engine::OnKeyUp(uint32_t keycode)
 
 void Engine::LoadContent()
 {
-	m_CubeMesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
-
+	m_GameObjects["Cube"].Init(m_Device, "../Assets/Models/Cube/cube.obj");
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].Init(m_Device);
 	m_ConstantBuffers[ConstantBuffers::CB_Frame].Init(m_Device);
 	m_ConstantBuffers[ConstantBuffers::CB_Object].Init(m_Device);
@@ -193,6 +219,8 @@ void Engine::LoadContent()
 	m_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
 
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].Update(m_DeviceContext, m_ProjectionMatrix);
+
+	m_UIManager.Init(m_Device, m_DeviceContext);
 }
 
 uint32_t Engine::GetWidth() const

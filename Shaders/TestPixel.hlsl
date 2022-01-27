@@ -9,5 +9,6 @@ SamplerState textureSampler : register(s0);
 
 float4 PsMain(PSInput input) : SV_Target
 {
-    return testTexture.Sample(textureSampler, input.texCoord);
+    // Not using texture as of now
+    return float4(0.8f, 0.8f, 0.8f, 1.0f);
 }

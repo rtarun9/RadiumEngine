@@ -51,12 +51,25 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
             }
             index_offset += fv;
 
-            // per-face material
-//            shapes[s].mesh.material_ids[f];
+            shapes[s].mesh.material_ids[f];
         }
     }
 
+    m_Transform.rotation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    m_Transform.scale = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
+    m_Transform.translation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+    m_TransformConstantBuffer.Init(device);
     m_VertexBuffer.Init(device, vertices);
+}
+
+void Mesh::UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+{
+    dx::XMMATRIX transform = dx::XMMatrixTranslation(m_Transform.translation.x, m_Transform.translation.y, m_Transform.translation.z) *
+        dx::XMMatrixRotationRollPitchYaw(m_Transform.rotation.x, m_Transform.rotation.y, m_Transform.rotation.z) * 
+        dx::XMMatrixScaling(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
+
+    m_TransformConstantBuffer.Update(deviceContext, transform);
 }
 
 void Mesh::Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)

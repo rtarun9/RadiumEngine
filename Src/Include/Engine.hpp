@@ -1,6 +1,8 @@
 #include "Pch.hpp"
 
 #include "Camera.hpp"
+#include "Mesh.hpp"
+#include "UIManager.hpp"
 
 #include "Graphics/Shader.hpp"
 #include "Graphics/Buffer.hpp"
@@ -8,38 +10,9 @@
 #include "Graphics/Texture.hpp"
 #include "Graphics/TextureSampler.hpp"
 
-#include "Mesh.hpp"
 
 class Engine
 {
-	//struct Vertex
-	//{
-	//	dx::XMFLOAT3 position;
-	//	dx::XMFLOAT3 color;
-	//};
-	//
-	//std::vector<Vertex> m_CubeVertices =
-	//{
-	//	{ dx::XMFLOAT3(-1.0f, -1.0f, -1.0f),	dx::XMFLOAT3(0.0f, 0.0f, 0.0f) },
-	//	{ dx::XMFLOAT3(-1.0f,  1.0f, -1.0f),	dx::XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	//	{ dx::XMFLOAT3(1.0f,  1.0f, -1.0f),		dx::XMFLOAT3(1.0f, 1.0f, 0.0f) },
-	//	{ dx::XMFLOAT3(1.0f, -1.0f, -1.0f),		dx::XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	//	{ dx::XMFLOAT3(-1.0f, -1.0f,  1.0f),	dx::XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	//	{ dx::XMFLOAT3(-1.0f,  1.0f,  1.0f),	dx::XMFLOAT3(0.0f, 1.0f, 1.0f) },
-	//	{ dx::XMFLOAT3(1.0f,  1.0f,  1.0f),		dx::XMFLOAT3(1.0f, 1.0f, 1.0f) },
-	//	{ dx::XMFLOAT3(1.0f, -1.0f,  1.0f),		dx::XMFLOAT3(1.0f, 0.0f, 1.0f) }
-	//};
-	//
-	//std::vector<uint32_t> m_CubeIndices =
-	//{
-	//	0, 1, 2, 0, 2, 3,
-	//	4, 6, 5, 4, 7, 6,
-	//	4, 5, 1, 4, 1, 0,
-	//	3, 2, 6, 3, 6, 7,
-	//	1, 5, 6, 1, 6, 2,
-	//	4, 0, 3, 4, 3, 7
-	//};
-
 public:
 	Engine(const std::wstring& title, uint32_t width, uint32_t height);
 	~Engine();
@@ -95,16 +68,17 @@ private:
 	VertexShader m_VertexShader;
 	PixelShader m_PixelShader;
 
-	Mesh m_CubeMesh;
+	std::unordered_map<std::string, Mesh> m_GameObjects;
 	
 	TextureSampler m_Sampler;
 	Texture m_WoodTexture;
 
 	ConstantBuffer<dx::XMMATRIX> m_ConstantBuffers[ConstantBuffers::ConstantBufferCount];
 
-	dx::XMMATRIX m_ModelMatrix;
 	dx::XMMATRIX m_ViewMatrix;
 	dx::XMMATRIX m_ProjectionMatrix;
 
 	Camera m_Camera;
+
+	UIManager m_UIManager;
 };
