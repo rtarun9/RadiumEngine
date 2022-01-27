@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 enum ConstantBuffers
@@ -40,6 +42,8 @@ public:
 		vertexSubresourceData.pSysMem = vertices.data();
 
 		ThrowIfFailed(device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &m_Buffer));
+
+		m_VerticesCount = vertices.size();
 	}
 
 	void Bind(wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
@@ -50,6 +54,8 @@ public:
 public:
 	UINT m_Stride;
 	UINT m_Offset;
+
+	UINT m_VerticesCount;
 };
 
 class IndexBuffer : public Buffer

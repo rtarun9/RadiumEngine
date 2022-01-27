@@ -119,7 +119,7 @@ void Engine::OnUpdate(float deltaTime)
 
 	dx::XMVECTOR rotationAxis = dx::XMVectorSet(0.0f, 1.0f, 1.0f, 0.0f);
 
-	m_ModelMatrix = dx::XMMatrixRotationAxis(rotationAxis, angle);
+	m_ModelMatrix = dx::XMMatrixScaling(10.f, 10.f, 10.0f);
 	m_ConstantBuffers[ConstantBuffers::CB_Object].Update(m_DeviceContext, m_ModelMatrix);
 }
 
@@ -132,9 +132,9 @@ void Engine::OnRender()
 	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), clearColor);
 	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.0f);
 
-	m_VertexBuffer.Bind(m_DeviceContext);
 	m_InputLayout.Bind(m_DeviceContext);
-	m_IndexBuffer.Bind(m_DeviceContext);
+	m_CubeMesh.m_VertexBuffer.Bind(m_DeviceContext);
+
 	m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_VertexShader.Bind(m_DeviceContext);
@@ -144,10 +144,13 @@ void Engine::OnRender()
 
 	m_PixelShader.Bind(m_DeviceContext);
 
+	m_Sampler.Bind(m_DeviceContext);
+	m_WoodTexture.Bind(m_DeviceContext);
+
 	m_DeviceContext->RSSetState(m_RasterizerState.Get());
 	m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
-	m_DeviceContext->DrawIndexed(std::size(m_CubeIndices), 0, 0);
+	m_CubeMesh.Draw(m_DeviceContext);
 	m_SwapChain->Present(1, 0);
 }
 
@@ -169,22 +172,25 @@ void Engine::OnKeyUp(uint32_t keycode)
 
 void Engine::LoadContent()
 {
-	m_VertexBuffer.Init(m_Device, m_CubeVertices);
-	m_IndexBuffer.Init(m_Device, m_CubeIndices);
+	m_CubeMesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
 
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].Init(m_Device);
 	m_ConstantBuffers[ConstantBuffers::CB_Frame].Init(m_Device);
 	m_ConstantBuffers[ConstantBuffers::CB_Object].Init(m_Device);
 
-	m_VertexShader.Init(m_Device, L"../Shaders/TestShader.hlsl", "VsMain");
-	m_PixelShader.Init(m_Device, L"../Shaders/TestShader.hlsl", "PsMain");
+	m_VertexShader.Init(m_Device, L"../Shaders/TestVertex.hlsl", "VsMain");
+	m_PixelShader.Init(m_Device, L"../Shaders/TestPixel.hlsl", "PsMain");
+
+	m_Sampler.Init(m_Device);
+	m_WoodTexture.Init(m_Device, "../Assets/Textures/whiteWood.jpg");
 
 	m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
-	m_InputLayout.AddInputElement("COLOR", DXGI_FORMAT_R32G32B32_FLOAT);
+	m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+	m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 
 	m_InputLayout.Init(m_Device, m_VertexShader.GetBytecodeBlob());
 
-	m_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 100.0f);
+	m_ProjectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
 
 	m_ConstantBuffers[ConstantBuffers::CB_Applcation].Update(m_DeviceContext, m_ProjectionMatrix);
 }

@@ -16,13 +16,14 @@ cbuffer PerObject : register(b2)
 struct VSInput
 {
     float3 position : POSITION;
-    float3 color : COLOR;
+    float3 normal : NORMAL;
+    float2 texCoord : TEXCOORD;
 };
 
 struct PSInput
 {
-    float4 color : COLOR;
     float4 position : SV_Position;
+    float2 texCoord : TEXCOORD;
 };
 
 PSInput VsMain(VSInput input)
@@ -30,13 +31,8 @@ PSInput VsMain(VSInput input)
     matrix mvpMatrix = mul(projectionMatrix, mul(viewMatrix, modelMatrix));
 	
     PSInput psInput;
-    psInput.color = float4(input.color, 1.0f);
     psInput.position = mul(mvpMatrix, float4(input.position, 1.0f));
-	
+    psInput.texCoord = input.texCoord;
+    
     return psInput;
-}
-
-float4 PsMain(PSInput input) : SV_Target
-{
-    return input.color;
 }
