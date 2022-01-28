@@ -88,6 +88,11 @@ HWND Application::GetWindowHandle()
 	return s_WindowHandle;
 }
 
+double Application::GetDeltaTime()
+{
+	return s_DeltaTime;
+}
+
 LRESULT CALLBACK Application::WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (ImGui_ImplWin32_WndProcHandler(windowHandle, message, wParam, lParam))

@@ -1,6 +1,7 @@
 struct PSInput
 {
     float4 position : SV_Position;
+    float3 normal : NORMAL;
     float2 texCoord : TEXCOORD;
 };
 
@@ -9,6 +10,6 @@ SamplerState textureSampler : register(s0);
 
 float4 PsMain(PSInput input) : SV_Target
 {
-    // Not using texture as of now
-    return float4(0.8f, 0.8f, 0.8f, 1.0f);
+    //return testTexture.Sample(textureSampler, input.texCoord);
+    return float4(0.8f, 0.8f, 0.801f, 1.0f);
 }

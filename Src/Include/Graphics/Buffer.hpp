@@ -5,9 +5,9 @@
 // NOTE : CB_Object is only used because of its numerical value : each mesh has its own transform constant buffer which is per object (essentially a Constant Buffer of type CB_Object).
 enum ConstantBuffers
 {
-	CB_Applcation,
 	CB_Frame,
 	CB_Object,
+	CB_Other,
 	ConstantBufferCount
 };
 
@@ -47,7 +47,7 @@ public:
 		m_VerticesCount = vertices.size();
 	}
 
-	void Bind(wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 	{
 		deviceContext->IASetVertexBuffers(0u, 1u, m_Buffer.GetAddressOf(), &m_Stride, &m_Offset);
 	}
@@ -74,6 +74,8 @@ public:
 		indexSubresourceData.pSysMem = indices.data();
 
 		ThrowIfFailed(device->CreateBuffer(&indexBufferDesc, &indexSubresourceData, &m_Buffer));
+		
+		m_Size = indices.size();
 	}
 
 	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
@@ -82,6 +84,7 @@ public:
 	}
 
 public:
+	UINT m_Size;
 };
 
 template <typename T>

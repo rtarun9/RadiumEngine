@@ -1,4 +1,4 @@
-#include "Mesh.hpp"
+#include "Graphics/Mesh.hpp"
 
 #define TINYOBJLOADER_IMPLEMENTATION 
 #include "tiny_obj_loader.h"
@@ -8,7 +8,7 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig readerConfig;
 
-    if (!reader.ParseFromFile(filePath, readerConfig)) 
+    if (!reader.ParseFromFile(filePath, readerConfig))
     {
         ErrorMessage("Could not find mesh at path : " + std::string(filePath));
     }
@@ -19,10 +19,10 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
 
     std::vector<Vertex> vertices;
 
-    for (size_t s = 0; s < shapes.size(); s++) 
+    for (size_t s = 0; s < shapes.size(); s++)
     {
         size_t index_offset = 0;
-        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) 
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
         {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
@@ -59,6 +59,8 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
     m_Transform.scale = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
     m_Transform.translation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
+    m_PerObjectData.color = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
+
     m_TransformConstantBuffer.Init(device);
     m_VertexBuffer.Init(device, vertices);
 }
@@ -66,10 +68,13 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
 void Mesh::UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 {
     dx::XMMATRIX transform = dx::XMMatrixTranslation(m_Transform.translation.x, m_Transform.translation.y, m_Transform.translation.z) *
-        dx::XMMatrixRotationRollPitchYaw(m_Transform.rotation.x, m_Transform.rotation.y, m_Transform.rotation.z) * 
+        dx::XMMatrixRotationX(m_Transform.rotation.x) * dx::XMMatrixRotationY(m_Transform.rotation.y) * dx::XMMatrixRotationZ(m_Transform.rotation.z) *
         dx::XMMatrixScaling(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
 
-    m_TransformConstantBuffer.Update(deviceContext, transform);
+    m_PerObjectData.modelMatrix = transform;
+    m_PerObjectData.inverseTransposedModelMatrix = dx::XMMatrixInverse(nullptr, dx::XMMatrixTranspose(transform));
+
+    m_TransformConstantBuffer.Update(deviceContext, m_PerObjectData);
 }
 
 void Mesh::Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)

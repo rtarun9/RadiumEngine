@@ -15,6 +15,16 @@ struct Transform
 	dx::XMFLOAT3 scale;
 	dx::XMFLOAT3 rotation;
 };
+
+struct PerObjectData
+{
+	dx::XMMATRIX modelMatrix;
+	dx::XMMATRIX inverseTransposedModelMatrix;
+
+	// Temporarily used, to be removed soon.
+	dx::XMFLOAT3 color;
+};
+
 class Mesh
 {
 public:
@@ -26,5 +36,6 @@ public:
 	VertexBuffer<Vertex> m_VertexBuffer;
 
 	Transform m_Transform;
-	ConstantBuffer<dx::XMMATRIX> m_TransformConstantBuffer;
+	PerObjectData m_PerObjectData;
+	ConstantBuffer<PerObjectData> m_TransformConstantBuffer;
 };

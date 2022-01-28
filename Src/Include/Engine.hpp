@@ -1,15 +1,16 @@
 #include "Pch.hpp"
 
 #include "Camera.hpp"
-#include "Mesh.hpp"
 #include "UIManager.hpp"
 
+#include "Graphics/DepthStencil.hpp"
+#include "Graphics/Mesh.hpp"
 #include "Graphics/Shader.hpp"
 #include "Graphics/Buffer.hpp"
 #include "Graphics/InputLayout.hpp"
 #include "Graphics/Texture.hpp"
 #include "Graphics/TextureSampler.hpp"
-
+#include "Graphics/Lights.hpp"
 
 class Engine
 {
@@ -51,8 +52,8 @@ private:
 
 	wrl::ComPtr<ID3D11Debug> m_Debug;
 
-	wrl::ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
-	wrl::ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
+	DepthStencil m_DepthStencil;
+
 	wrl::ComPtr<ID3D11RenderTargetView> m_RenderTargetView;
 
 	wrl::ComPtr<ID3D11DepthStencilState> m_DepthStencilState;
@@ -73,12 +74,18 @@ private:
 	TextureSampler m_Sampler;
 	Texture m_WoodTexture;
 
-	ConstantBuffer<dx::XMMATRIX> m_ConstantBuffers[ConstantBuffers::ConstantBufferCount];
-
-	dx::XMMATRIX m_ViewMatrix;
-	dx::XMMATRIX m_ProjectionMatrix;
-
 	Camera m_Camera;
 
 	UIManager m_UIManager;
+
+	struct PerFrameData
+	{
+		dx::XMMATRIX viewMatrix;
+		dx::XMMATRIX projectionMatrix;
+	};
+
+	DirectionalLight m_DirectionalLight;
+	PerFrameData m_PerFrameData;
+
+	ConstantBuffer<PerFrameData> m_PerFrameConstantBuffer;
 };

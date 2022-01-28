@@ -9,6 +9,8 @@ class Application
 public:
 	[[nodiscard]] static int Run(std::shared_ptr<Engine> engine, HINSTANCE instance);
 	[[nodiscard]] static HWND GetWindowHandle();
+	
+	static double GetDeltaTime();
 
 private:
 	static LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam);

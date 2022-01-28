@@ -12,9 +12,7 @@ public:
 	void Render();
 
 	void Close();
-
-private:
-	// NOTE : Custom DearImGui style taken from https://github.com/GraphicsProgramming/dear-imgui-styles.
-	// Original style : https://github.com/simongeilfus/Cinder-ImGui
-	void CustomCinderStyle();
+	
+	// From here : https://github.com/ocornut/imgui/issues/707	
+	void SetCustomDarkTheme();
 };
