@@ -3,14 +3,14 @@
 #define TINYOBJLOADER_IMPLEMENTATION 
 #include "tiny_obj_loader.h"
 
-void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
+void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath)
 {
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig readerConfig;
 
     if (!reader.ParseFromFile(filePath, readerConfig))
     {
-        ErrorMessage("Could not find mesh at path : " + std::string(filePath));
+        ErrorMessage(std::wstring(L"Could not find mesh at path: ") + StringToWString(filePath));
     }
 
     auto& attrib = reader.GetAttrib();
@@ -50,8 +50,6 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
                 vertices.push_back(vertex);
             }
             index_offset += fv;
-
-            shapes[s].mesh.material_ids[f];
         }
     }
 
@@ -67,8 +65,10 @@ void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
 
 void Mesh::UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 {
+    // NOTE : Rotation does not work as expected when rotation is done after translation.
+    dx::XMVECTOR rotationVector = dx::XMVectorSet(m_Transform.rotation.x, m_Transform.rotation.y, m_Transform.rotation.z, 0.0f);
     dx::XMMATRIX transform = dx::XMMatrixTranslation(m_Transform.translation.x, m_Transform.translation.y, m_Transform.translation.z) *
-        dx::XMMatrixRotationX(m_Transform.rotation.x) * dx::XMMatrixRotationY(m_Transform.rotation.y) * dx::XMMatrixRotationZ(m_Transform.rotation.z) *
+        dx::XMMatrixRotationRollPitchYawFromVector(rotationVector) * 
         dx::XMMatrixScaling(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
 
     m_PerObjectData.modelMatrix = transform;

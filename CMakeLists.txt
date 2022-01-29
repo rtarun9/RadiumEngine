@@ -12,11 +12,7 @@ find_path(STB_INCLUDE_DIRS "stb.h")
 
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-
-include_directories(
-  ${PROJECT_NAME}
-  Src/Include
-)
+find_package(assimp CONFIG REQUIRED)
 
 file(GLOB_RECURSE SRC_FILES
     ${PROJECT_SOURCE_DIR}/**/*.cpp
@@ -31,11 +27,21 @@ target_include_directories(
     ${PROJECT_SOURCE_DIR}/Src/Include
 )
 
-target_precompile_headers(${PROJECT_NAME} 
+# Not including any of the windows files here because of the #ifdef's used.
+target_precompile_headers(${PROJECT_NAME}
+    PUBLIC
+    <algorithm>
+    <chrono>
+    <memory>
+    <string>
+    <vector>
+    <unordered_map>
+    <cassert>
+    <exception>
     PRIVATE
     ${PROJECT_SOURCE_DIR}/Src/Include/Pch.hpp
 )
 
-target_link_libraries(${PROJECT_NAME} tinyobjloader::tinyobjloader imgui::imgui d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
+target_link_libraries(${PROJECT_NAME} assimp::assimp tinyobjloader::tinyobjloader imgui::imgui d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

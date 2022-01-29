@@ -6,13 +6,6 @@
 #include "imgui.h"
 #include <imgui_impl_win32.h>
 
-HWND Application::s_WindowHandle = 0;
-
-std::chrono::high_resolution_clock Application::s_Clock = {};
-std::chrono::high_resolution_clock::time_point Application::s_PreviousFrameTime = {};
-std::chrono::high_resolution_clock::time_point Application::s_CurrentFrameTime = {};
-double Application::s_DeltaTime = 0.0f;
-
 // Forward declare message handler from imgui_impl_win32.cpp.
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -34,10 +27,7 @@ int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
 	windowClass.hIcon = nullptr;
 	windowClass.hIconSm = nullptr;
 
-	if (!::RegisterClassExW(&windowClass))
-	{
-		ErrorMessage(L"Failed to register window class");
-	}
+	ASSERT(::RegisterClassExW(&windowClass), L"Failed to register window class");
 
 	RECT windowRect = { 0, 0, static_cast<LONG>(engine->GetWidth()), static_cast<LONG>(engine->GetHeight())};
 	::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -50,10 +40,7 @@ int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
 		CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
 		0, 0, instance, engine.get());
 
-	if (!s_WindowHandle)
-	{
-		ErrorMessage(L"Failed to create window");
-	}
+	ASSERT(s_WindowHandle, L"Failed to create window");
 
 	engine->OnInit();
 

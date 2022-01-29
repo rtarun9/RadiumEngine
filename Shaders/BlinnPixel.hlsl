@@ -34,6 +34,6 @@ float4 CalculateDiffuseLight(float3 normal, PSInput input)
 float4 PsMain(PSInput input) : SV_Target
 {
     float4 lightCalculationResult = CalculateAmbientLight(input) + CalculateDiffuseLight(normalize(input.normal), input);
- 
+
     return lightCalculationResult;
 }

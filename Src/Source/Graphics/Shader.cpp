@@ -16,12 +16,12 @@ wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std
 	{
 		if (hr == 0x80070003)
 		{
-			ErrorMessage(std::string("Could not find file"));
+			ErrorMessage(std::wstring(L"Could not find file at path : ") + fileName);
 		}
 		if (errorBlob.Get())
 		{
 			std::string errorMessage = (char*)errorBlob->GetBufferPointer();
-			ErrorMessage(errorMessage);
+			ErrorMessage(StringToWString(errorMessage));
 
 			return nullptr;
 		}

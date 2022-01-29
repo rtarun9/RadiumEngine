@@ -11,8 +11,7 @@ void UIManager::Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-
+   
 	ImGui_ImplWin32_EnableDpiAwareness();
 
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

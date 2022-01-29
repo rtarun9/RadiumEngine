@@ -16,10 +16,10 @@ void InputLayout::AddInputElement(const char* semanticName, DXGI_FORMAT format)
 	m_InputElementDescs.push_back(inputElementDesc);
 }
 
-void InputLayout::Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3DBlob>& vertexShaderBlob)
+void InputLayout::Init(const wrl::ComPtr<ID3D11Device>& device, ShaderModule& shaderModule)
 {
 	ThrowIfFailed(device->CreateInputLayout(m_InputElementDescs.data(), m_InputElementDescs.size(), 
-		vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize(), &m_InputLayout));
+		shaderModule.vertexShader.GetBytecodeBlob()->GetBufferPointer(), shaderModule.vertexShader.GetBytecodeBlob()->GetBufferSize(), &m_InputLayout));
 }
 
 void InputLayout::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)

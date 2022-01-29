@@ -36,7 +36,7 @@ PSInput VsMain(VSInput input)
     psInput.normal = mul((float3x3) (inverseTransposedModelMatrix), input.normal);
     
     // Only for testing, needs to be removed soon.
-    psInput.color = color;
+    psInput.color = color; 
     
     return psInput;
 }

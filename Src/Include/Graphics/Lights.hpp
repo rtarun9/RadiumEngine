@@ -17,9 +17,10 @@ struct LightData
 class DirectionalLight
 {
 public:
+	void Init(const wrl::ComPtr<ID3D11Device>& device);
 	void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 public:
-	LightData m_LightData;
+	LightData m_LightData{};
 	ConstantBuffer<LightData> m_LightConstantBuffer;
 };

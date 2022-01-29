@@ -1,24 +1,12 @@
 #include "Pch.hpp"
 
-enum Keys
-{
-	W,
-	A,
-	S,
-	D,
-	AUp,
-	ADown,
-	ALeft,
-	ARight,
-	TotalKeyCount
-};
 
 class Camera
 {
 public:
 	Camera();
 
-	void HandleInput(uint32_t keycode, bool isKeyDown);
+	void HandleInput(uint32_t keycode, bool isKeyDown = false);
 	void Update(float deltaTime);
 
 	dx::XMMATRIX GetViewMatrix() const; 

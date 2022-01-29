@@ -1,11 +1,13 @@
 #include "Pch.hpp"
 
+#include "Graphics/Shader.hpp"
+
 class InputLayout
 {
 public:
 	void AddInputElement(const char* semanticName, DXGI_FORMAT format);
 
-	void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3DBlob>& vertexShaderBlob);
+	void Init(const wrl::ComPtr<ID3D11Device>& device, ShaderModule& shaderModule);
 
 	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 

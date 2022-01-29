@@ -3,12 +3,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-void Texture::Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath)
+void Texture::Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath)
 {
-	unsigned char* texture = stbi_load(filePath, &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
+	unsigned char* texture = stbi_load(filePath.c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
 	if (!texture)
 	{
-		ErrorMessage("Failed to load texture at path : " + std::string(filePath));
+		ErrorMessage(L"Failed to load texture at path : " + StringToWString(filePath));
 	}
 
 	int textureBytesPerRow = 4 * m_TexWidth;

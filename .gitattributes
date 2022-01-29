@@ -8,7 +8,9 @@
 #
 # This is need for earlier builds of msysgit that does not have it on by
 # default for csharp files.
-# Note: This is only used by command line
+# 
+
+: This is only used by command line
 ###############################################################################
 #*.cs     diff=csharp
 

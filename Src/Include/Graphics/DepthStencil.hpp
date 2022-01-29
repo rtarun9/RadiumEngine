@@ -5,7 +5,8 @@
 enum class DSType
 {
 	DepthStencil,
-	ShadowDepth
+	ShadowDepth,
+	None
 };
 
 class DepthStencil
@@ -24,5 +25,5 @@ public:
 	wrl::ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
 	wrl::ComPtr<ID3D11Texture2D> m_DepthStencilBuffer;
 
-	DSType m_DepthStencilType;
+	DSType m_DepthStencilType{ DSType::None };
 };

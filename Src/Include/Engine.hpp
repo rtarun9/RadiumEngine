@@ -16,7 +16,7 @@ class Engine
 {
 public:
 	Engine(const std::wstring& title, uint32_t width, uint32_t height);
-	~Engine();
+	~Engine() = default;
 
 	void OnInit();
 	void OnUpdate(float deltaTime);
@@ -31,6 +31,9 @@ public:
 	uint32_t GetWidth() const;
 	uint32_t GetHeight() const;
 	std::wstring GetTitle() const;
+
+private:
+	void UpdateGameObjects();
 
 private:
 	static constexpr uint32_t NUMBER_OF_FRAMES = 3;
@@ -62,17 +65,10 @@ private:
 	D3D11_VIEWPORT m_Viewport = {};
 
 	// Application specific variables.
-	InputLayout m_InputLayout;
-	VertexBuffer<Vertex> m_VertexBuffer;
-	IndexBuffer m_IndexBuffer;
-
-	VertexShader m_VertexShader;
-	PixelShader m_PixelShader;
-
+	std::unordered_map<std::string, ShaderModule> m_Shaders;
 	std::unordered_map<std::string, Mesh> m_GameObjects;
-	
-	TextureSampler m_Sampler;
-	Texture m_WoodTexture;
+
+	InputLayout m_InputLayout;
 
 	Camera m_Camera;
 

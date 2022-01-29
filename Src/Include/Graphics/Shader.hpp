@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 class Shader
@@ -9,7 +11,7 @@ public:
 	[[nodiscard]]
 	wrl::ComPtr<ID3DBlob> GetBytecodeBlob();
 
-protected:
+public:
 	wrl::ComPtr<ID3DBlob> m_ShaderBlob;
 };
 
@@ -33,4 +35,10 @@ public:
 
 public:
 	wrl::ComPtr<ID3D11PixelShader> m_PixelShader;
+};
+
+struct ShaderModule
+{
+	VertexShader vertexShader;
+	PixelShader pixelShader;
 };

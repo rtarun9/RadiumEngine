@@ -53,8 +53,8 @@ public:
 	}
 
 public:
-	UINT m_Stride = 0;
-	UINT m_Offset = 0;
+	UINT m_Stride{0};
+	UINT m_Offset{0};
 
 	UINT m_VerticesCount = 0;
 };
@@ -62,29 +62,12 @@ public:
 class IndexBuffer : public Buffer
 {
 public:
-	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices)
-	{
-		D3D11_BUFFER_DESC indexBufferDesc = {};
-		indexBufferDesc.ByteWidth = std::size(indices) * sizeof(uint32_t);
-		indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-		indexBufferDesc.CPUAccessFlags = 0;
-		indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices);
 
-		D3D11_SUBRESOURCE_DATA indexSubresourceData = {};
-		indexSubresourceData.pSysMem = indices.data();
-
-		ThrowIfFailed(device->CreateBuffer(&indexBufferDesc, &indexSubresourceData, &m_Buffer));
-		
-		m_Size = indices.size();
-	}
-
-	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
-	{
-		deviceContext->IASetIndexBuffer(m_Buffer.Get(), DXGI_FORMAT_R32_UINT, 0u);
-	}
+	void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 public:
-	UINT m_Size;
+	UINT m_Size{0};
 };
 
 template <typename T>
@@ -120,5 +103,5 @@ public:
 	}
 
 public:
-	T m_Data;
+	T m_Data = {};
 };

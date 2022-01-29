@@ -1,123 +1,24 @@
 #include "Camera.hpp"
 
 Camera::Camera()
+	: m_WorldFront(dx::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)), m_WorldRight(dx::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)),
+	  m_WorldUp(dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), m_CameraFront(m_WorldFront), m_CameraRight(m_WorldRight),
+	  m_CameraUp(m_WorldUp), m_CameraTarget(dx::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f)), m_CameraPosition(dx::XMVectorSet(0.0f, 0.0f, -10.0f, 0.0f)),
+	  m_Yaw(0.0f), m_Pitch(0.0f), m_ViewMatrix(dx::XMMatrixIdentity()), m_CameraRotationMatrix(dx::XMMatrixIdentity()),
+	  m_MovementSpeed(500.0f), m_RotationSpeed(0.05f), m_KeyState{false}
 {
-	m_WorldFront = dx::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-	m_WorldRight = dx::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
-	m_WorldUp = dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	m_CameraFront = m_WorldFront;
-	m_CameraRight = m_WorldRight;
-	m_CameraUp = m_WorldUp;
-
-	m_CameraTarget = dx::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	m_CameraPosition = dx::XMVectorSet(0.0f, 0.0f, -10.0f, 0.0f);
-
-	m_Yaw = 0.0f;
-	m_Pitch = 0.0f;
-
-	m_MovementSpeed = 500.0f;
-
-	m_RotationSpeed = 0.05f;
-
-	for (size_t i = 0; i < Keys::TotalKeyCount; i++)
-	{
-		m_KeyState[i] = false;
-	}
 }
 
 void Camera::HandleInput(uint32_t keycode, bool isKeyDown)
 {
-	if (isKeyDown)
-	{
-		switch (keycode)
-		{
-		case 'W':
-		{
-			m_KeyState[Keys::W] = true;
-		}break;
+	// WARNING : Because we are not checking if keycode exist within keymap, any keycode not beloning in it will cause camera to move forward,
+	// To disable this uncomment the code below. It is being left uncommented since this solution is likely not ideal, but can be annoying in some cases.
+	//if (INPUT_MAP.find(keycode) != INPUT_MAP.end())
+	//{
+	//	m_KeyState[INPUT_MAP[keycode]] = isKeyDown;
+	//}
 
-		case 'S':
-		{
-			m_KeyState[Keys::S] = true;
-		}break;
-
-		case 'A':
-		{
-			m_KeyState[Keys::A] = true;
-		}break;
-
-		case 'D':
-		{
-			m_KeyState[Keys::D] = true;
-		}break;
-
-		case VK_UP:
-		{
-			m_KeyState[Keys::AUp] = true;
-		}break;
-
-		case VK_DOWN:
-		{
-			m_KeyState[Keys::ADown] = true;
-		}break;
-
-		case VK_RIGHT:
-		{
-			m_KeyState[Keys::ARight] = true;
-		}break;
-
-		case VK_LEFT:
-		{
-			m_KeyState[Keys::ALeft] = true;
-		}break;
-		}
-	}
-	else
-	{
-		switch (keycode)
-		{
-		case 'W':
-		{
-			m_KeyState[Keys::W] = false;
-		}break;
-
-		case 'S':
-		{
-			m_KeyState[Keys::S] = false;
-		}break;
-
-		case 'A':
-		{
-			m_KeyState[Keys::A] = false;
-		}break;
-
-		case 'D':
-		{
-			m_KeyState[Keys::D] = false;
-		}break;
-
-		case VK_UP:
-		{
-			m_KeyState[Keys::AUp] = false;
-		}break;
-
-		case VK_DOWN:
-		{
-			m_KeyState[Keys::ADown] = false;
-		}break;
-
-		case VK_RIGHT:
-		{
-			m_KeyState[Keys::ARight] = false;
-		}break;
-
-		case VK_LEFT:
-		{
-			m_KeyState[Keys::ALeft] = false;
-		}break;
-		}
-	}
+	m_KeyState[INPUT_MAP[keycode]] = isKeyDown;
 }
 
 

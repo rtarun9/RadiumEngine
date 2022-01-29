@@ -28,14 +28,14 @@ struct PerObjectData
 class Mesh
 {
 public:
-	void Init(const wrl::ComPtr<ID3D11Device>& device, const char* filePath);
+	void Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath);
 	void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 	void UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 public:
 	VertexBuffer<Vertex> m_VertexBuffer;
 
-	Transform m_Transform;
-	PerObjectData m_PerObjectData;
-	ConstantBuffer<PerObjectData> m_TransformConstantBuffer;
+	Transform m_Transform{};
+	PerObjectData m_PerObjectData{};
+	ConstantBuffer<PerObjectData> m_TransformConstantBuffer{};
 };

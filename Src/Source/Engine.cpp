@@ -9,9 +9,6 @@ Engine::Engine(const std::wstring& title, uint32_t width, uint32_t height)
 	m_AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 }
 
-Engine::~Engine()
-{
-}
 
 void Engine::OnInit()
 {
@@ -111,30 +108,7 @@ void Engine::OnRender()
 	
 	ImGui::Begin("Scene Graph");
 
-	for (auto& gameObjects : m_GameObjects)
-	{
-		if (ImGui::TreeNode(gameObjects.first.c_str()))
-		{
-			// NOTE : scaling on Y not working as expected.
-			ImGui::SliderFloat3("Translate", &gameObjects.second.m_Transform.translation.x, -10.0f, 10.0f);
-			ImGui::SliderFloat3("Rotate", &gameObjects.second.m_Transform.rotation.x, -180.0f, 180.0f);
-			ImGui::SliderFloat3("Scale", &gameObjects.second.m_Transform.scale.x, 0.1f, 50.0f);
-			ImGui::ColorEdit3("Color", &gameObjects.second.m_PerObjectData.color.x);
-			ImGui::TreePop();
-		}
-
-		gameObjects.second.UpdateTransformComponent(m_DeviceContext);
-	}
-
-	if (ImGui::Button("Add cube"))
-	{
-		std::string objectName = "Cube " + std::to_string(m_GameObjects.size());
-		Mesh mesh;
-	
-		// Obvious problem here : Same mesh being loaded again and again. Not fixing it as of now since only used for small scale testing of shadow mapping.
-		mesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
-		m_GameObjects.insert({ objectName, mesh });
-	}
+	UpdateGameObjects();
 
 	ImGui::End();
 	
@@ -165,19 +139,15 @@ void Engine::OnRender()
 
 		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		m_VertexShader.Bind(m_DeviceContext);
+		m_Shaders["DefaultShader"].vertexShader.Bind(m_DeviceContext);
 		m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 
 		object.m_TransformConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
 	
-		m_PixelShader.Bind(m_DeviceContext);
+		m_Shaders["DefaultShader"].pixelShader.Bind(m_DeviceContext);
 
 		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext);
 		
-		m_Sampler.Bind(m_DeviceContext);
-		m_WoodTexture.Bind(m_DeviceContext);
-
-
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
@@ -216,17 +186,14 @@ void Engine::LoadContent()
 
 	m_PerFrameConstantBuffer.Init(m_Device);
 
-	m_VertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", "VsMain");
-	m_PixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", "PsMain");
-
-	m_Sampler.Init(m_Device);
-	m_WoodTexture.Init(m_Device, "../Assets/Textures/test.png");
+	m_Shaders["DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", "VsMain");
+	m_Shaders["DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", "PsMain");
 
 	m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
 	m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
 	m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 
-	m_InputLayout.Init(m_Device, m_VertexShader.GetBytecodeBlob());
+	m_InputLayout.Init(m_Device, m_Shaders["DefaultShader"]);
 
 	m_PerFrameData.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
 
@@ -236,7 +203,7 @@ void Engine::LoadContent()
 	m_DirectionalLight.m_LightData.lightColor = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
 	m_DirectionalLight.m_LightData.lightDirection = dx::XMFLOAT4(0.0f, -10.0f, 0.0f, 0.0f);
 
-	m_DirectionalLight.m_LightConstantBuffer.Init(m_Device);
+	m_DirectionalLight.Init(m_Device);
 }
 
 uint32_t Engine::GetWidth() const
@@ -252,4 +219,32 @@ uint32_t Engine::GetHeight() const
 std::wstring Engine::GetTitle() const
 {
 	return m_Title;
+}
+
+void Engine::UpdateGameObjects()
+{
+	for (auto& gameObjects : m_GameObjects)
+	{
+		if (ImGui::TreeNode(gameObjects.first.c_str()))
+		{
+			// NOTE : scaling on Y not working as expected.
+			ImGui::SliderFloat3("Translate", &gameObjects.second.m_Transform.translation.x, -10.0f, 10.0f);
+			ImGui::SliderFloat3("Rotate", &gameObjects.second.m_Transform.rotation.x, -180.0f, 180.0f);
+			ImGui::SliderFloat3("Scale", &gameObjects.second.m_Transform.scale.x, 0.1f, 50.0f);
+			ImGui::ColorEdit3("Color", &gameObjects.second.m_PerObjectData.color.x);
+			ImGui::TreePop();
+		}
+
+		gameObjects.second.UpdateTransformComponent(m_DeviceContext);
+	}
+
+	if (ImGui::Button("Add cube"))
+	{
+		std::string objectName = "Cube " + std::to_string(m_GameObjects.size());
+		Mesh mesh;
+
+		// Obvious problem here : Same mesh being loaded again and again. Not fixing it as of now since only used for small scale testing of shadow mapping.
+		mesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
+		m_GameObjects.insert({ objectName, mesh });
+	}
 }
