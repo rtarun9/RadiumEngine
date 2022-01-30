@@ -9,123 +9,126 @@
 // Forward declare message handler from imgui_impl_win32.cpp.
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-
-int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
+namespace rad
 {
-	// Register window class and create window class.
-	WNDCLASSEXW windowClass = {};
-	windowClass.cbSize = sizeof(WNDCLASSEXW);
-	windowClass.cbClsExtra = 0;
-	windowClass.cbWndExtra = 0;
-	windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-	windowClass.lpfnWndProc = WindowProc;
-	windowClass.hInstance = instance;
-	windowClass.lpszClassName = WINDOW_CLASS_NAME;
-	windowClass.lpszMenuName = nullptr;
-	windowClass.hCursor = nullptr;
-	windowClass.hbrBackground = nullptr;
-	windowClass.hIcon = nullptr;
-	windowClass.hIconSm = nullptr;
-
-	ASSERT(::RegisterClassExW(&windowClass), L"Failed to register window class");
-
-	RECT windowRect = { 0, 0, static_cast<LONG>(engine->GetWidth()), static_cast<LONG>(engine->GetHeight())};
-	::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
-
-	int windowWidth = windowRect.right - windowRect.left;
-	int windowHeight = windowRect.bottom - windowRect.top;
-
-	s_WindowHandle = ::CreateWindowExW(0,
-		WINDOW_CLASS_NAME, engine->GetTitle().c_str(), WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
-		0, 0, instance, engine.get());
-
-	ASSERT(s_WindowHandle, L"Failed to create window");
-
-	engine->OnInit();
-
-	::ShowWindow(s_WindowHandle, SW_SHOW);
-
-	// Main game loop
-	MSG message = {};
-	while (message.message != WM_QUIT)
+	int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
 	{
-		s_CurrentFrameTime = s_Clock.now();
-		s_DeltaTime = (s_CurrentFrameTime - s_PreviousFrameTime).count() * 1e-9;
-		s_PreviousFrameTime = s_CurrentFrameTime;
+		// Register window class and create window class.
+		WNDCLASSEXW windowClass = {};
+		windowClass.cbSize = sizeof(WNDCLASSEXW);
+		windowClass.cbClsExtra = 0;
+		windowClass.cbWndExtra = 0;
+		windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+		windowClass.lpfnWndProc = WindowProc;
+		windowClass.hInstance = instance;
+		windowClass.lpszClassName = WINDOW_CLASS_NAME;
+		windowClass.lpszMenuName = nullptr;
+		windowClass.hCursor = nullptr;
+		windowClass.hbrBackground = nullptr;
+		windowClass.hIcon = nullptr;
+		windowClass.hIconSm = nullptr;
 
-		if (::PeekMessageW(&message, 0, 0, 0, PM_REMOVE))
+		ASSERT(::RegisterClassExW(&windowClass), L"Failed to register window class");
+
+		RECT windowRect = { 0, 0, static_cast<LONG>(engine->GetWidth()), static_cast<LONG>(engine->GetHeight()) };
+		::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+
+		int windowWidth = windowRect.right - windowRect.left;
+		int windowHeight = windowRect.bottom - windowRect.top;
+
+		s_WindowHandle = ::CreateWindowExW(0,
+			WINDOW_CLASS_NAME, engine->GetTitle().c_str(), WS_OVERLAPPEDWINDOW,
+			CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
+			0, 0, instance, engine.get());
+
+		ASSERT(s_WindowHandle, L"Failed to create window");
+
+		engine->OnInit();
+
+		::ShowWindow(s_WindowHandle, SW_SHOWMAXIMIZED);
+
+		// Main game loop
+		MSG message = {};
+		while (message.message != WM_QUIT)
 		{
-			::TranslateMessage(&message);
-			::DispatchMessageW(&message);
+			s_CurrentFrameTime = s_Clock.now();
+			s_DeltaTime = (s_CurrentFrameTime - s_PreviousFrameTime).count() * 1e-9;
+			s_PreviousFrameTime = s_CurrentFrameTime;
+
+			if (::PeekMessageW(&message, 0, 0, 0, PM_REMOVE))
+			{
+				::TranslateMessage(&message);
+				::DispatchMessageW(&message);
+			}
+
+			engine->OnUpdate(s_DeltaTime);
+			engine->OnRender();
 		}
 
-		engine->OnUpdate(s_DeltaTime);
-		engine->OnRender();
+		engine->OnDestroy();
+
+		UnregisterClassW(WINDOW_CLASS_NAME, instance);
+		return static_cast<int>(message.wParam);
 	}
 
-	engine->OnDestroy();
-	
-	UnregisterClassW(WINDOW_CLASS_NAME, instance);
-	return static_cast<int>(message.wParam);
-}
-
-HWND Application::GetWindowHandle()
-{
-	return s_WindowHandle;
-}
-
-double Application::GetDeltaTime()
-{
-	return s_DeltaTime;
-}
-
-LRESULT CALLBACK Application::WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	if (ImGui_ImplWin32_WndProcHandler(windowHandle, message, wParam, lParam))
+	HWND Application::GetWindowHandle()
 	{
-		return true;
+		return s_WindowHandle;
 	}
 
-	Engine* engine = reinterpret_cast<Engine*>(GetWindowLongPtrW(windowHandle, GWLP_USERDATA));
-
-	switch (message)
+	double Application::GetDeltaTime()
 	{
-	case WM_CREATE:
-	{
-		// Save the engine instance passed as last parameter to CreateWindow.
-		LPCREATESTRUCT createStruct = reinterpret_cast<LPCREATESTRUCTW>(lParam);
-		SetWindowLongPtrW(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(createStruct->lpCreateParams));
-	}break;
+		return s_DeltaTime;
+	}
 
-	case WM_DESTROY:
+	LRESULT CALLBACK Application::WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		::PostQuitMessage(0);
-	}break;
-
-	case WM_KEYUP:
-	{
-		engine->OnKeyUp(static_cast<uint32_t>(wParam));
-	}break;
-
-	case WM_KEYDOWN:
-	{
-		engine->OnKeyDown(static_cast<uint32_t>(wParam));
-
-		switch (wParam)
+		if (ImGui_ImplWin32_WndProcHandler(windowHandle, message, wParam, lParam))
 		{
-		case VK_ESCAPE:
+			return true;
+		}
+
+		Engine* engine = reinterpret_cast<Engine*>(GetWindowLongPtrW(windowHandle, GWLP_USERDATA));
+
+		switch (message)
 		{
-			::DestroyWindow(windowHandle);
+		case WM_CREATE:
+		{
+			// Save the engine instance passed as last parameter to CreateWindow.
+			LPCREATESTRUCT createStruct = reinterpret_cast<LPCREATESTRUCTW>(lParam);
+			SetWindowLongPtrW(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(createStruct->lpCreateParams));
+		}break;
+
+		case WM_DESTROY:
+		{
+			::PostQuitMessage(0);
+		}break;
+
+		case WM_KEYUP:
+		{
+			engine->OnKeyUp(static_cast<uint32_t>(wParam));
+		}break;
+
+		case WM_KEYDOWN:
+		{
+			engine->OnKeyDown(static_cast<uint32_t>(wParam));
+
+			switch (wParam)
+			{
+			case VK_ESCAPE:
+			{
+				::DestroyWindow(windowHandle);
+			}break;
+			}
+		}break;
+
+		default:
+		{
+			return ::DefWindowProcW(windowHandle, message, wParam, lParam);
 		}break;
 		}
-	}break;
 
-	default:
-	{
-		return ::DefWindowProcW(windowHandle, message, wParam, lParam);
-	}break;
+		return 0;
 	}
 
-	return 0;
 }

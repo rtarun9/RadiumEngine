@@ -1,11 +1,16 @@
 #include "Graphics/Lights.hpp"
 
-void DirectionalLight::Init(const wrl::ComPtr<ID3D11Device>& device)
+namespace rad
 {
-	m_LightConstantBuffer.Init(device);
+	void DirectionalLight::Init(const wrl::ComPtr<ID3D11Device>& device)
+	{
+		m_LightConstantBuffer.Init(device);
+	}
+
+	void DirectionalLight::Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	{
+		m_LightConstantBuffer.Update(deviceContext, m_LightData);
+	}
+
 }
 
-void DirectionalLight::Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
-{
-	m_LightConstantBuffer.Update(deviceContext, m_LightData);
-}

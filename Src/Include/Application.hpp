@@ -2,27 +2,30 @@
 
 #include "Pch.hpp"
 
-class Engine;
-
-class Application
+namespace rad
 {
-public:
-	[[nodiscard]] static int Run(std::shared_ptr<Engine> engine, HINSTANCE instance);
-	[[nodiscard]] static HWND GetWindowHandle();
-	
-	static double GetDeltaTime();
+	class Engine;
 
-private:
-	static LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam);
+	class Application
+	{
+	public:
+		[[nodiscard]] static int Run(std::shared_ptr<Engine> engine, HINSTANCE instance);
+		[[nodiscard]] static HWND GetWindowHandle();
 
-private:
-	static constexpr LPCWSTR WINDOW_CLASS_NAME = L"Base Window Class";
+		static double GetDeltaTime();
 
-	static inline HWND s_WindowHandle;
+	private:
+		static LRESULT CALLBACK WindowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam);
 
-	static inline std::chrono::high_resolution_clock s_Clock;
-	static inline std::chrono::high_resolution_clock::time_point s_PreviousFrameTime;
-	static inline std::chrono::high_resolution_clock::time_point s_CurrentFrameTime;
-	static inline double s_DeltaTime;
+	private:
+		static constexpr LPCWSTR WINDOW_CLASS_NAME = L"Base Window Class";
 
-};
+		static inline HWND s_WindowHandle;
+
+		static inline std::chrono::high_resolution_clock s_Clock;
+		static inline std::chrono::high_resolution_clock::time_point s_PreviousFrameTime;
+		static inline std::chrono::high_resolution_clock::time_point s_CurrentFrameTime;
+		static inline double s_DeltaTime;
+
+	};
+}

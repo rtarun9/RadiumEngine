@@ -1,61 +1,70 @@
 #include "Graphics/Shader.hpp"
 
-wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+namespace rad
 {
-	wrl::ComPtr<ID3DBlob> errorBlob;
+	wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	{
+		wrl::ComPtr<ID3DBlob> errorBlob;
 
-	UINT flags = 0;
+		UINT flags = 0;
 
 #if _DEBUG
-	flags = D3DCOMPILE_DEBUG;
+		flags = D3DCOMPILE_DEBUG;
 #endif
 
-	HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, entryPoint.c_str(), shaderProfile.c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, entryPoint.c_str(), shaderProfile.c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
 
-	if (FAILED(hr))
-	{
-		if (hr == 0x80070003)
+		if (FAILED(hr))
 		{
-			ErrorMessage(std::wstring(L"Could not find file at path : ") + fileName);
-		}
-		if (errorBlob.Get())
-		{
-			std::string errorMessage = (char*)errorBlob->GetBufferPointer();
-			ErrorMessage(StringToWString(errorMessage));
+			if (hr == 0x80070003)
+			{
+				ErrorMessage(std::wstring(L"Could not find file at path : ") + fileName);
+			}
+			if (errorBlob.Get())
+			{
+				std::string errorMessage = (char*)errorBlob->GetBufferPointer();
+				ErrorMessage(StringToWString(errorMessage));
 
-			return nullptr;
+				return nullptr;
+			}
 		}
+
+		return m_ShaderBlob;
 	}
 
-	return m_ShaderBlob;
-}
-
-wrl::ComPtr<ID3DBlob> Shader::GetBytecodeBlob()
-{
-	return m_ShaderBlob;
-}
+	wrl::ComPtr<ID3DBlob> Shader::GetBytecodeBlob()
+	{
+		return m_ShaderBlob;
+	}
 
 
-void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
-{
-	m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
+	void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	{
+		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
-	ThrowIfFailed(device->CreateVertexShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_VertexShader));
-}
+		ThrowIfFailed(device->CreateVertexShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_VertexShader));
+	}
 
-void VertexShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
-{
-	deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
-}
+	void VertexShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	{
+		deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
+	}
 
-void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
-{
-	m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
+	void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	{
+		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
-	ThrowIfFailed(device->CreatePixelShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_PixelShader));
-}
+		ThrowIfFailed(device->CreatePixelShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_PixelShader));
+	}
 
-void PixelShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
-{
-	deviceContext->PSSetShader(m_PixelShader.Get(), nullptr, 0u);
+	void PixelShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	{
+		deviceContext->PSSetShader(m_PixelShader.Get(), nullptr, 0u);
+	}
+
+	void ShaderModule::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	{
+		vertexShader.Bind(deviceContext);
+		pixelShader.Bind(deviceContext);
+	}
 }

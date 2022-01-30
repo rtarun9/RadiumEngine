@@ -2,17 +2,21 @@
 
 #include "imgui.h"
 
-class UIManager
+namespace rad
 {
-public:
-	void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
-	
-	void FrameBegin();
+	class UIManager
+	{
+	public:
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
-	void Render();
+		void FrameBegin();
 
-	void Close();
-	
-	// From here : https://github.com/ocornut/imgui/issues/707	
-	void SetCustomDarkTheme();
-};
+		void Render();
+
+		void Close();
+
+		// From here : https://github.com/ocornut/imgui/issues/707	
+		void SetCustomDarkTheme();
+	};
+}
+

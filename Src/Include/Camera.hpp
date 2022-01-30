@@ -1,39 +1,41 @@
 #include "Pch.hpp"
 
-
-class Camera
+namespace rad
 {
-public:
-	Camera();
+	class Camera
+	{
+	public:
+		Camera();
 
-	void HandleInput(uint32_t keycode, bool isKeyDown = false);
-	void Update(float deltaTime);
+		void HandleInput(uint32_t keycode, bool isKeyDown = false);
+		void Update(float deltaTime);
 
-	dx::XMMATRIX GetViewMatrix() const; 
+		dx::XMMATRIX GetViewMatrix() const;
 
-public:
-	dx::XMVECTOR m_WorldFront;
-	dx::XMVECTOR m_WorldRight;
-	dx::XMVECTOR m_WorldUp;
+	public:
+		dx::XMVECTOR m_WorldFront;
+		dx::XMVECTOR m_WorldRight;
+		dx::XMVECTOR m_WorldUp;
 
-	dx::XMVECTOR m_CameraFront;
-	dx::XMVECTOR m_CameraRight;
-	dx::XMVECTOR m_CameraUp;
+		dx::XMVECTOR m_CameraFront;
+		dx::XMVECTOR m_CameraRight;
+		dx::XMVECTOR m_CameraUp;
 
-	dx::XMVECTOR m_CameraTarget;
-	dx::XMVECTOR m_CameraPosition;
+		dx::XMVECTOR m_CameraTarget;
+		dx::XMVECTOR m_CameraPosition;
 
-	dx::XMMATRIX m_CameraRotationMatrix;
+		dx::XMMATRIX m_CameraRotationMatrix;
 
-	dx::XMMATRIX m_ViewMatrix;
- 
-	// Movement speed is for WASD
-	// Rotation speed is for orientation
-	float m_MovementSpeed;
-	float m_RotationSpeed;
+		dx::XMMATRIX m_ViewMatrix;
 
-	float m_Yaw;
-	float m_Pitch;
+		// Movement speed is for WASD
+		// Rotation speed is for orientation
+		float m_MovementSpeed;
+		float m_RotationSpeed;
 
-	bool m_KeyState[Keys::TotalKeyCount];
-};
+		float m_Yaw;
+		float m_Pitch;
+
+		bool m_KeyState[Keys::TotalKeyCount];
+	};
+}
