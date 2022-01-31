@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
 	{
 		wrl::ComPtr<ID3DBlob> errorBlob;
 
@@ -12,7 +12,8 @@ namespace rad
 		flags = D3DCOMPILE_DEBUG;
 #endif
 
-		HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, entryPoint.c_str(), shaderProfile.c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
+		auto x = WStringToString(entryPoint);
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, WStringToString(entryPoint).c_str(), WStringToString(shaderProfile).c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
 
 		if (FAILED(hr))
 		{
@@ -38,7 +39,7 @@ namespace rad
 	}
 
 
-	void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
@@ -50,7 +51,7 @@ namespace rad
 		deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
 	}
 
-	void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile)
+	void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 

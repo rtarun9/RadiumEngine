@@ -50,25 +50,23 @@ namespace rad
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
+		m_Sampler.Bind(m_DeviceContext);
+
 		// Bind constant buffers
 		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext);
 		m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 
-		GetShaderModule("DefaultShader")->Bind(m_DeviceContext);
+		GetShaderModule(L"DefaultShader")->Bind(m_DeviceContext);
 		
 		for (auto& gameObject : m_GameObjects)
 		{
 			auto& object = gameObject.second;
 		
-			object.m_VertexBuffer.Bind(m_DeviceContext);
-		
-		
-			object.m_TransformConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
-		
+			object.m_PerObjectConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
+			
+			// Seems to be MASSIVE FPS drops - Profiling is required.
 			object.Draw(m_DeviceContext);
 		}
-
-		m_TestModel.Draw(m_DeviceContext);
 
 		m_UIManager.Render();
 
@@ -95,22 +93,17 @@ namespace rad
 
 	void Engine::LoadContent()
 	{
-		m_GameObjects["Cube"].Init(m_Device, "../Assets/Models/Cube/cube.obj");
-		m_GameObjects["Floor"].Init(m_Device, "../Assets/Models/Cube/cube.obj");
-
-		m_GameObjects["Floor"].m_Transform.translation = dx::XMFLOAT3(0.0f, -6.0f, 0.0f);
-		m_GameObjects["Floor"].m_Transform.scale = dx::XMFLOAT3(15.0f, 1.0f, 15.0f);
-
+		m_Sampler.Init(m_Device, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP);
 		m_PerFrameConstantBuffer.Init(m_Device);
 
-		m_Shaders["DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", "VsMain");
-		m_Shaders["DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", "PsMain");
+		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", L"VsMain");
+		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", L"PsMain");
 
 		m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 
-		m_InputLayout.Init(m_Device, m_Shaders["DefaultShader"]);
+		m_InputLayout.Init(m_Device, m_Shaders[L"DefaultShader"]);
 
 		m_PerFrameData.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
 
@@ -122,7 +115,8 @@ namespace rad
 
 		m_DirectionalLight.Init(m_Device);
 
-		m_TestModel.Init(m_Device, "../Assets/Models/Cube/cube.obj");
+		m_GameObjects[L"Sponza"].Init(m_Device, L"../Assets/Models/Sponza/glTF/Sponza.gltf");
+		m_GameObjects[L"Sponza"].m_Transform.scale = dx::XMFLOAT3(0.1f, 0.1f, 0.1f);
 	}
 
 	uint32_t Engine::GetWidth() const
@@ -222,13 +216,12 @@ namespace rad
 		ImGui::Begin("Scene Graph");
 		for (auto& gameObjects : m_GameObjects)
 		{
-			if (ImGui::TreeNode(gameObjects.first.c_str()))
+			if (ImGui::TreeNode(WStringToString(gameObjects.first).c_str()))
 			{
 				// NOTE : scaling on Y not working as expected.
 				ImGui::SliderFloat3("Translate", &gameObjects.second.m_Transform.translation.x, -10.0f, 10.0f);
 				ImGui::SliderFloat3("Rotate", &gameObjects.second.m_Transform.rotation.x, -180.0f, 180.0f);
 				ImGui::SliderFloat3("Scale", &gameObjects.second.m_Transform.scale.x, 0.1f, 50.0f);
-				ImGui::ColorEdit3("Color", &gameObjects.second.m_PerObjectData.color.x);
 				ImGui::TreePop();
 			}
 
@@ -237,12 +230,10 @@ namespace rad
 
 		if (ImGui::Button("Add cube"))
 		{
-			std::string objectName = "Cube " + std::to_string(m_GameObjects.size());
-			Mesh mesh;
+			std::wstring objectName = L"Cube " + std::to_wstring(m_GameObjects.size());
+			Model cubeModel = Model::CubeModel(m_Device);
 
-			// Obvious problem here : Same mesh being loaded again and again. Not fixing it as of now since only used for small scale testing of shadow mapping.
-			mesh.Init(m_Device, "../Assets/Models/Cube/cube.obj");
-			m_GameObjects.insert({ objectName, mesh });
+			m_GameObjects.insert({ objectName, cubeModel});
 		}
 
 		ImGui::End();
@@ -258,6 +249,8 @@ namespace rad
 			ImGui::SliderFloat3("Direction", &m_DirectionalLight.m_LightData.lightDirection.x, -10.0f, 10.0f);
 			ImGui::TreePop();
 		}
+		ImGui::ShowDemoWindow();
+
 		ImGui::End();
 	}
 
@@ -272,23 +265,12 @@ namespace rad
 		m_SwapChain->Present(1, 0);
 	}
 
-	ShaderModule* Engine::GetShaderModule(const std::string& name)
+	ShaderModule* Engine::GetShaderModule(const std::wstring& name)
 	{
 		auto it = m_Shaders.find(name);
 		if (it == m_Shaders.end())
 		{
-			ErrorMessage(L"Could not find shader with module " + StringToWString(name));
-		}
-
-		return &it->second;
-	}
-
-	Mesh* Engine::GetMesh(const std::string& name)
-	{
-		auto it = m_GameObjects.find(name);
-		if (it == m_GameObjects.end())
-		{
-			ErrorMessage(L"Could not find mesh with module " + StringToWString(name));
+			ErrorMessage(L"Could not find shader with module " + name);
 		}
 
 		return &it->second;

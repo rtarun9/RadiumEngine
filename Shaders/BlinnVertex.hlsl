@@ -8,7 +8,6 @@ cbuffer PerObject : register(b1)
 {
     matrix modelMatrix;
     matrix inverseTransposedModelMatrix;
-    float3 color;
 }
 
 struct VSInput
@@ -34,9 +33,6 @@ PSInput VsMain(VSInput input)
     psInput.position = mul(mvpMatrix, float4(input.position, 1.0f));
     psInput.texCoord = input.texCoord;
     psInput.normal = mul((float3x3) (inverseTransposedModelMatrix), input.normal);
-    
-    // Only for testing, needs to be removed soon.
-    psInput.color = color; 
     
     return psInput;
 }

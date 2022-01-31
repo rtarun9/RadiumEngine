@@ -6,32 +6,23 @@
 
 namespace rad
 {
-	void _Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
-	{
-		m_Vertices = vertices;
-		m_Indices = indices;
-
-		m_VertexBuffer.Init(device, m_Vertices);
-		m_IndexBuffer.Init(device, m_Indices);
-	}
-
-	void _Mesh::Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
-	{
-		m_VertexBuffer.Bind(deviceContext);
-		m_IndexBuffer.Bind(deviceContext);
-
-		deviceContext->DrawIndexed(m_Indices.size(), 0, 0);
-	}
-
-	void Model::Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& path)
+	void Model::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& path)
 	{
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
+		const aiScene* scene = importer.ReadFile(WStringToString(path), aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
 
 		if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 		{
-			ErrorMessage(L"Cannot load model with path : " + StringToWString(path));
+			ErrorMessage(L"Cannot load model with path : " + path);
 		}
+
+		m_Transform.rotation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+		m_Transform.scale = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
+		m_Transform.translation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		m_PerObjectConstantBuffer.Init(device);
+
+		m_ModelDirectory = path.substr(0, path.find_last_of(L'/') + 1);
 
 		ProcessNode(device, scene->mRootNode, scene);
 	}
@@ -62,47 +53,136 @@ namespace rad
 
 	void Model::ProcessMesh(const wrl::ComPtr<ID3D11Device>& device, aiMesh* mesh, const aiScene* scene)
 	{
-        std::vector<Vertex> vertices;
-        std::vector<uint32_t> indices;
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
 
-        for (uint32_t i = 0; i < mesh->mNumVertices; i++)
-        {
-            Vertex vertex = {};
+		for (uint32_t i = 0; i < mesh->mNumVertices; i++)
+		{
+			Vertex vertex = {};
 
-            vertex.position.x = mesh->mVertices[i].x;
-            vertex.position.y = mesh->mVertices[i].y;
-            vertex.position.z = mesh->mVertices[i].z;
+			vertex.position.x = mesh->mVertices[i].x;
+			vertex.position.y = mesh->mVertices[i].y;
+			vertex.position.z = mesh->mVertices[i].z;
 
-            vertex.normal.x = mesh->mNormals[i].x;
-            vertex.normal.y = mesh->mNormals[i].y;
-            vertex.normal.z = mesh->mNormals[i].z;
+			vertex.normal.x = mesh->mNormals[i].x;
+			vertex.normal.y = mesh->mNormals[i].y;
+			vertex.normal.z = mesh->mNormals[i].z;
 
-            // NOTE : ASSIMP CAN HAVE 8 TEX COORDS PER VERTEX, BUT USING ONLY FIRST FOR NOW
-            if (mesh->mTextureCoords[0])
-            {
-                vertex.texCoords.x = mesh->mTextureCoords[0][i].x;
-                vertex.texCoords.y = mesh->mTextureCoords[0][i].y;
-            }
-            else
-            {
-                vertex.texCoords.x = 0;
+			// NOTE : ASSIMP CAN HAVE 8 TEX COORDS PER VERTEX, BUT USING ONLY FIRST FOR NOW
+			if (mesh->mTextureCoords[0])
+			{
+				vertex.texCoords.x = mesh->mTextureCoords[0][i].x;
+				vertex.texCoords.y = mesh->mTextureCoords[0][i].y;
+			}
+			else
+			{
+				vertex.texCoords.x = 0;
 				vertex.texCoords.y = 0;
-            }
+			}
 
-            vertices.push_back(vertex);
-        }
+			vertices.push_back(vertex);
+		}
 
-        for (uint32_t i = 0; i < mesh->mNumFaces; i++)
-        {
-            aiFace face = mesh->mFaces[i];
-            for (uint32_t j = 0; j < face.mNumIndices; j++)
-            {
-                indices.push_back(face.mIndices[j]);
-            }
-        }
+		for (uint32_t i = 0; i < mesh->mNumFaces; i++)
+		{
+			aiFace face = mesh->mFaces[i];
+			for (uint32_t j = 0; j < face.mNumIndices; j++)
+			{
+				indices.push_back(face.mIndices[j]);
+			}
+		}
 
-		_Mesh newMesh;
-		newMesh.Init(device, vertices, indices);
+		std::vector<Texture> textures;
+
+		if (mesh->mMaterialIndex >= 0)
+		{
+			aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+			std::vector<Texture> diffuseMaps = LoadMaterialTextures(device, material, aiTextureType_DIFFUSE, TextureTypes::TextureDiffuse);
+			textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+
+			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
+			textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+
+			std::vector<Texture> normalMaps = LoadMaterialTextures(device, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
+			textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+
+			std::vector<Texture> heightMaps = LoadMaterialTextures(device, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
+			textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+		
+			for (int i = textures.size(); i < TextureTypes::TextureCount; i++)
+			{
+				textures.push_back(Texture::DefaultTexture(device));
+			}
+		}
+		else
+		{
+			// Can be optimized further.
+			textures.emplace_back(Texture::DefaultTexture(device));
+			textures.emplace_back(Texture::DefaultTexture(device));
+			textures.emplace_back(Texture::DefaultTexture(device));
+			textures.emplace_back(Texture::DefaultTexture(device));
+		}
+
+		Mesh newMesh{};
+		newMesh.Init(device, vertices, indices, textures);
 		m_Meshes.push_back(newMesh);
+	}
+
+	std::vector<Texture> Model::LoadMaterialTextures(const wrl::ComPtr<ID3D11Device>& device, aiMaterial* material, aiTextureType textureType, TextureTypes type)
+	{
+		std::vector<Texture> textures;
+
+		for (uint32_t i = 0; i < material->GetTextureCount(textureType); i++)
+		{
+			aiString str;
+			material->GetTexture(textureType, i, &str);
+
+			bool alreadyAdded = false;
+			for (uint32_t j = 0; j < m_LoadedTextures.size(); j++)
+			{
+				if (!std::strcmp(WStringToString(m_LoadedTextures[j].path).data(), str.C_Str()))
+				{
+					textures.push_back(m_LoadedTextures[j].texture);
+					alreadyAdded = true;
+					break;
+				}
+			}
+			
+			if (!alreadyAdded)
+			{
+				Texture texture;
+
+				std::wstring path = m_ModelDirectory + StringToWString(str.C_Str());
+
+				texture.Init(device, path);
+				textures.push_back(texture);
+
+				m_LoadedTextures.push_back({ StringToWString(str.C_Str()), texture });
+			}
+		}
+
+		return textures;
+	}
+
+	void Model::UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	{
+		// NOTE : Rotation does not work as expected when rotation is done after translation.
+		dx::XMVECTOR rotationVector = dx::XMVectorSet(m_Transform.rotation.x, m_Transform.rotation.y, m_Transform.rotation.z, 0.0f);
+		dx::XMMATRIX transform = dx::XMMatrixTranslation(m_Transform.translation.x, m_Transform.translation.y, m_Transform.translation.z) *
+			dx::XMMatrixRotationRollPitchYawFromVector(rotationVector) *
+			dx::XMMatrixScaling(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
+
+		m_PerObjectData.modelMatrix = transform;
+		m_PerObjectData.inverseTransposedModelMatrix = dx::XMMatrixInverse(nullptr, dx::XMMatrixTranspose(transform));
+
+		m_PerObjectConstantBuffer.Update(deviceContext, m_PerObjectData);
+	}
+
+	Model Model::CubeModel(const wrl::ComPtr<ID3D11Device>& device)
+	{
+		Model cube;
+		cube.Init(device, L"../Assets/Models/Cube/cube.obj");
+
+		return cube;
 	}
 }

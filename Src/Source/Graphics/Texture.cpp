@@ -5,12 +5,12 @@
 
 namespace rad
 {
-	void Texture::Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath)
+	void Texture::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& filePath)
 	{
-		unsigned char* texture = stbi_load(filePath.c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
+		unsigned char* texture = stbi_load(WStringToString(filePath).c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
 		if (!texture)
 		{
-			ErrorMessage(L"Failed to load texture at path : " + StringToWString(filePath));
+			ErrorMessage(L"Failed to load texture at path : " + filePath);
 		}
 
 		int textureBytesPerRow = 4 * m_TexWidth;
@@ -34,6 +34,14 @@ namespace rad
 		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), nullptr, &m_TextureView));
 
 		stbi_image_free(texture);
+	}
+
+	Texture Texture::DefaultTexture(const wrl::ComPtr<ID3D11Device>& device)
+	{
+		Texture defaultTexture;
+		defaultTexture.Init(device, L"../Assets/Textures/MissingTexture.png");
+
+		return defaultTexture;
 	}
 
 	void Texture::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, int slot)

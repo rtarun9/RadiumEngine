@@ -8,7 +8,7 @@ namespace rad
 	{
 	public:
 		[[nodiscard]]
-		wrl::ComPtr<ID3DBlob> LoadShader(const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile);
+		wrl::ComPtr<ID3DBlob> LoadShader(const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile);
 
 		[[nodiscard]]
 		wrl::ComPtr<ID3DBlob> GetBytecodeBlob();
@@ -20,7 +20,7 @@ namespace rad
 	class VertexShader : public Shader
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "vs_5_0");
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile = L"vs_5_0");
 
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
@@ -31,7 +31,7 @@ namespace rad
 	class PixelShader : public Shader
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::string& entryPoint, const std::string& shaderProfile = "ps_5_0");
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile = L"ps_5_0");
 
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
@@ -41,8 +41,8 @@ namespace rad
 
 	struct ShaderModule
 	{
-		VertexShader vertexShader;
-		PixelShader pixelShader;
+		VertexShader vertexShader{};
+		PixelShader pixelShader{};
 
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 	};

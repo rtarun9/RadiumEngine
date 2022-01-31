@@ -22,18 +22,25 @@ static inline void ThrowIfFailed(HRESULT hr)
 static inline void ErrorMessage(LPCWSTR error)
 {
 	MessageBoxW(0, error, L"ERROR", MB_OK);
-	exit(EXIT_FAILURE);
+	abort();
 }
 
 static inline void ErrorMessage(const std::wstring& error)
 {
 	MessageBoxW(0, error.c_str(), L"ERROR", MB_OK);
-	exit(EXIT_FAILURE);
+	abort();
 }
 
 static inline std::wstring StringToWString(const std::string& string)
 {
 	std::wstring result(string.begin(), string.end());
+	return result;
+}
+
+// Only to be used for API's that require UTF-8 Strings and not WideStrings
+static inline std::string WStringToString(const std::wstring& wstring)
+{
+	std::string result(wstring.begin(), wstring.end());
 	return result;
 }
 

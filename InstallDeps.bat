@@ -2,10 +2,8 @@
 # VCPKG_DEFAULT_TRIPLET = x64-windows
 vcpkg.exe install stb
 
-vcpkg.exe install tinyobjloader
-
 vcpkg.exe install imgui[dx11-binding]
 vcpkg.exe install imgui[win32-binding]
 vcpkg.exe install imgui[docking-experimental]
-r
+
 vcpkg.exe install assimp

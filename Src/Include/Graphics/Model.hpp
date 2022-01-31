@@ -10,43 +10,37 @@
 
 namespace rad
 {
-	//// Uncomment when Mesh class is removed (the one with tinyobjloader)
-	//struct Vertex
-	//{
-	//	dx::XMFLOAT3 position;
-	//	dx::XMFLOAT3 normal;
-	//	dx::XMFLOAT2 texCoords;
-	//};
-
-	// Will replace other Mesh class soon, hence the underscore.
-	class _Mesh
+	struct LoadedTexture
 	{
-	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
-
-		void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
-
-	private:
-		std::vector<Vertex> m_Vertices;
-		std::vector<uint32_t> m_Indices;
-
-		VertexBuffer<Vertex> m_VertexBuffer;
-		IndexBuffer m_IndexBuffer;
+		std::wstring path;
+		Texture texture;
 	};
 
 	class Model
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& path);
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& path);
 		void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 	
-	private:
+		static Model CubeModel(const wrl::ComPtr<ID3D11Device>& device);
+
+	public:
 		void ProcessNode(const wrl::ComPtr<ID3D11Device>& device, aiNode* node, const aiScene* scene);
 
 		// Translate aiMesh into custom Mesh class
 		void ProcessMesh(const wrl::ComPtr<ID3D11Device>& device, aiMesh* mesh, const aiScene* scene);
+		std::vector<Texture> LoadMaterialTextures(const wrl::ComPtr<ID3D11Device>& device, aiMaterial* material, aiTextureType textureType, TextureTypes type);
 
-	private:
-		std::vector<_Mesh> m_Meshes;
+		void UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+
+	public:
+		std::wstring m_ModelDirectory;
+
+		std::vector<LoadedTexture> m_LoadedTextures;
+
+		std::vector<Mesh> m_Meshes;
+		Transform m_Transform{};
+		PerObjectData m_PerObjectData{};
+		ConstantBuffer<PerObjectData> m_PerObjectConstantBuffer{};
 	};
 }

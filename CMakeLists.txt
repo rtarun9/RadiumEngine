@@ -10,7 +10,6 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/Bin")
 
 find_path(STB_INCLUDE_DIRS "stb.h")
 
-find_package(tinyobjloader CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
@@ -42,6 +41,6 @@ target_precompile_headers(${PROJECT_NAME}
     ${PROJECT_SOURCE_DIR}/Src/Include/Pch.hpp
 )
 
-target_link_libraries(${PROJECT_NAME} assimp::assimp tinyobjloader::tinyobjloader imgui::imgui d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
+target_link_libraries(${PROJECT_NAME} assimp::assimp imgui::imgui d3d11.lib dxgi.lib d3dcompiler.lib dxguid.lib) 
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

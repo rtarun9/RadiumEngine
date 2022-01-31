@@ -16,9 +16,6 @@ namespace rad
 	public:
 		void Init(const wrl::ComPtr<ID3D11Device>& device, uint32_t width, uint32_t height, DSType type);
 
-		// Since binding includes RTV not setting it as of now.
-		//void Bind();
-
 		void Clear(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, float depthValue = 1.0f, float stencilValue = 0.0f);
 
 		wrl::ComPtr<ID3D11Texture2D> ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);

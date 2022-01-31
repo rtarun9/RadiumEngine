@@ -3,9 +3,21 @@
 #include "Pch.hpp"
 
 #include "Graphics/Buffer.hpp"
+#include "Graphics/Texture.hpp"
 
 namespace rad
 {
+	// NOTE : Will need to make between aiTextureTypes and custom TextureType in future (similar to approach taken for
+	//	      WIN32 virtual key codes and custom key types. 
+	enum TextureTypes
+	{
+		TextureDiffuse,
+		TextureSpecular,
+		TextureNormal,
+		TextureHeight,
+		TextureCount
+	};
+
 	struct Vertex
 	{
 		dx::XMFLOAT3 position;
@@ -24,24 +36,22 @@ namespace rad
 	{
 		dx::XMMATRIX modelMatrix;
 		dx::XMMATRIX inverseTransposedModelMatrix;
-
-		// Temporarily used, to be removed soon.
-		dx::XMFLOAT3 color;
 	};
 
 	class Mesh
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath);
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures);
+
 		void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
-		void UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
-	public:
-		VertexBuffer<Vertex> m_VertexBuffer;
+	private:
+		std::vector<Vertex> m_Vertices;
+		std::vector<uint32_t> m_Indices;
+		std::vector<Texture> m_Textures;
 
-		Transform m_Transform{};
-		PerObjectData m_PerObjectData{};
-		ConstantBuffer<PerObjectData> m_TransformConstantBuffer{};
+		VertexBuffer<Vertex> m_VertexBuffer{};
+		IndexBuffer m_IndexBuffer{};
 	};
 
 }

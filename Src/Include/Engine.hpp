@@ -44,8 +44,7 @@ namespace rad
 		void Clear(float clearColor[]);
 		void Present();
 
-		ShaderModule* GetShaderModule(const std::string& name);
-		Mesh* GetMesh(const std::string& name);
+		ShaderModule* GetShaderModule(const std::wstring& name);
 
 	private:
 		static constexpr uint32_t NUMBER_OF_FRAMES = 3;
@@ -77,10 +76,10 @@ namespace rad
 		D3D11_VIEWPORT m_Viewport = {};
 
 		// Application specific variables.
-		std::unordered_map<std::string, ShaderModule> m_Shaders;
-		std::unordered_map<std::string, Mesh> m_GameObjects;
+		std::unordered_map<std::wstring, ShaderModule> m_Shaders;
+		std::unordered_map<std::wstring, Model> m_GameObjects;
 
-		Model m_TestModel;
+		TextureSampler m_Sampler;
 
 		InputLayout m_InputLayout;
 

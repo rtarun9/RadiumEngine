@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 namespace rad
@@ -5,10 +7,11 @@ namespace rad
 	class Texture
 	{
 	public:
-		// WARNING : Trying to avoid using std::string however since tinyobjloader expects const char * this isnt possible as of now.
-		// Problem should be fixed when I switch over to assimp / other loaders.
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::string& filePath);
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& filePath);
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, int slot = 0);
+
+		// If a particular texture is not present, loads a default one
+		static Texture DefaultTexture(const wrl::ComPtr<ID3D11Device>& device);
 
 	public:
 		int m_TexWidth{ 0 };

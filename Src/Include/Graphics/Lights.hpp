@@ -9,7 +9,7 @@ namespace rad
 	// Will be constant buffer
 	struct LightData
 	{
-		// lightPosition is float4 due to padding reasons.
+		// lightDirection is float4 due to padding reasons.
 		float ambientStrength;
 		dx::XMFLOAT3 lightColor;
 
