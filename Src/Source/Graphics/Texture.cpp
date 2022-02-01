@@ -13,6 +13,8 @@ namespace rad
 			ErrorMessage(L"Failed to load texture at path : " + filePath);
 		}
 
+		ASSERT(!(m_TexWidth < 0 || m_TexHeight < 0), L"Texture has invalid dimensions (width or height < 0)");
+
 		int textureBytesPerRow = 4 * m_TexWidth;
 
 		D3D11_TEXTURE2D_DESC textureDesc = {};

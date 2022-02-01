@@ -40,11 +40,17 @@ float4 CalculateDiffuseLight(float3 normal, PSInput input)
 float4 PsMain(PSInput input) : SV_Target
 {
     const float GAMMA = 2.2f;
+    float4 diffTexture = diffuseTexture.Sample(textureSampler, input.texCoord);
+    float alpha = diffTexture.a;
+    
+    // Doesnt work as expected, should be fine as long as clear color is black.
+    clip(alpha < 0.1f ? -1 : 1);
 
     float4 lightCalculationResult = CalculateAmbientLight(input) + CalculateDiffuseLight(normalize(input.normal), input);
 
-    float4 result = lightCalculationResult * normalTexture.Sample(textureSampler, input.texCoord);
+    float4 result = float4(lightColor, 1.0f) * lightCalculationResult * diffTexture;
     result = pow(result, 1 / GAMMA);
+    result.a = alpha;
 
     return result;
 }

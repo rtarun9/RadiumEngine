@@ -8,7 +8,10 @@ namespace rad
 		Camera();
 
 		void HandleInput(uint32_t keycode, bool isKeyDown = false);
+
 		void Update(float deltaTime);
+		
+		void UpdateControls();
 
 		dx::XMMATRIX GetViewMatrix() const;
 

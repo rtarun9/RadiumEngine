@@ -23,7 +23,7 @@ namespace rad
 		}
 		else if (type == DSType::ShadowDepth)
 		{
-			depthStencilBufferDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+			depthStencilBufferDesc.Format = DXGI_FORMAT_D32_FLOAT;
 		}
 
 		ThrowIfFailed(device->CreateTexture2D(&depthStencilBufferDesc, nullptr, &m_DepthStencilBuffer));
@@ -42,10 +42,17 @@ namespace rad
 
 	void DepthStencil::Clear(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, float depthValue, float stencilValue)
 	{
-		deviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, depthValue, stencilValue);
+		if (m_DepthStencilType == DSType::DepthStencil)
+		{
+			deviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, depthValue, stencilValue);
+		}
+		else if (m_DepthStencilType == DSType::ShadowDepth)
+		{
+			deviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, depthValue, 1u);
+		}
 	}
 
-	wrl::ComPtr<ID3D11Texture2D> DepthStencil::ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	wrl::ComPtr<ID3D11ShaderResourceView> DepthStencil::ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 	{
 		// Creating another texture that is compatable with source, but has CPU read access.
 		wrl::ComPtr<ID3D11Resource> resource;
@@ -56,9 +63,10 @@ namespace rad
 
 		D3D11_TEXTURE2D_DESC textureDesc = {};
 		texture->GetDesc(&textureDesc);
+		textureDesc.Format = DXGI_FORMAT_R32_FLOAT;
 		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-		textureDesc.Usage = D3D11_USAGE_STAGING;
-		textureDesc.BindFlags = 0;
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
 		wrl::ComPtr<ID3D11Texture2D> temporaryTexture;
 
@@ -66,6 +74,10 @@ namespace rad
 
 		deviceContext->CopyResource(temporaryTexture.Get(), texture.Get());
 
-		return texture;
+		// Creating another texture with CPU access as none.
+		wrl::ComPtr<ID3D11ShaderResourceView> depthTextureShaderResourceView;
+		ThrowIfFailed(device->CreateShaderResourceView(temporaryTexture.Get(), nullptr, &depthTextureShaderResourceView));
+		
+		return depthTextureShaderResourceView;
 	}
 }

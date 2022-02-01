@@ -1,5 +1,7 @@
 #include "Camera.hpp"
 
+#include <imgui.h>
+
 namespace rad
 {
 
@@ -77,6 +79,14 @@ namespace rad
 		m_CameraTarget = m_CameraPosition + m_CameraTarget;
 
 		m_ViewMatrix = dx::XMMatrixLookAtLH(m_CameraPosition, m_CameraTarget, m_CameraUp);
+	}
+
+	void Camera::UpdateControls()
+	{
+		ImGui::Begin("Camera Controls");
+		ImGui::SliderFloat("Movement Speed", &m_MovementSpeed, 0.0f, 1000.0f);
+		ImGui::SliderFloat("Rotation Speed", &m_RotationSpeed, 0.0f, 10.0f);
+		ImGui::End();
 	}
 
 	dx::XMMATRIX Camera::GetViewMatrix() const

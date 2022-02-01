@@ -18,7 +18,7 @@ namespace rad
 
 		void Clear(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, float depthValue = 1.0f, float stencilValue = 0.0f);
 
-		wrl::ComPtr<ID3D11Texture2D> ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		wrl::ComPtr<ID3D11ShaderResourceView> ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 	public:
 		wrl::ComPtr<ID3D11DepthStencilView> m_DepthStencilView;

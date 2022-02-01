@@ -94,6 +94,11 @@ namespace rad
 			m_Data = data;
 		}
 
+		void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+		{
+			deviceContext->UpdateSubresource(m_Buffer.Get(), 0, nullptr, &m_Data, 0, 0);
+		}
+
 		void BindVS(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, UINT startSlot = 0, UINT count = 1)
 		{
 			deviceContext->VSSetConstantBuffers(startSlot, count, m_Buffer.GetAddressOf());

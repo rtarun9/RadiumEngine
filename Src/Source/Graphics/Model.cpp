@@ -37,14 +37,14 @@ namespace rad
 
 	void Model::ProcessNode(const wrl::ComPtr<ID3D11Device>& device, aiNode* node, const aiScene* scene)
 	{
-		// process all meshes of node
+		// Process all meshes of node.
 		for (uint32_t i = 0; i < node->mNumMeshes; i++)
 		{
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
 			ProcessMesh(device, mesh, scene);
 		}
 
-		// process all children of current node
+		// Process all children of current node.
 		for (uint32_t i = 0; i < node->mNumChildren; i++)
 		{
 			ProcessNode(device, node->mChildren[i], scene);
@@ -94,24 +94,48 @@ namespace rad
 
 		std::vector<Texture> textures;
 
+		// As of now, there will only be 4 textures (one for each type of map)
 		if (mesh->mMaterialIndex >= 0)
 		{
 			aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 			std::vector<Texture> diffuseMaps = LoadMaterialTextures(device, material, aiTextureType_DIFFUSE, TextureTypes::TextureDiffuse);
-			textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-
-			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
-			textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-
-			std::vector<Texture> normalMaps = LoadMaterialTextures(device, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
-			textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-
-			std::vector<Texture> heightMaps = LoadMaterialTextures(device, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
-			textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-		
-			for (int i = textures.size(); i < TextureTypes::TextureCount; i++)
+			if (!diffuseMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device));
+			}
+			else
+			{
+				textures.push_back(diffuseMaps[0]);
+			}
+
+			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
+			if (!specularMaps.size())
+			{
+				textures.push_back(Texture::DefaultTexture(device));
+			}
+			else
+			{
+				textures.push_back(specularMaps[0]);
+			}
+
+			std::vector<Texture> normalMaps = LoadMaterialTextures(device, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
+			if (!normalMaps.size())
+			{
+				textures.push_back(Texture::DefaultTexture(device));
+			}
+			else
+			{
+				textures.push_back(normalMaps[0]);
+			}
+
+			std::vector<Texture> heightMaps = LoadMaterialTextures(device, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
+			if (!heightMaps.size())
+			{
+				textures.push_back(Texture::DefaultTexture(device));
+			}
+			else
+			{
+				textures.push_back(heightMaps[0]);
 			}
 		}
 		else

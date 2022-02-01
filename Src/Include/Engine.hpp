@@ -15,6 +15,11 @@
 
 namespace rad
 {
+	struct PerFrameData
+	{
+		dx::XMMATRIX viewMatrix;
+		dx::XMMATRIX projectionMatrix;
+	};
 
 	class Engine
 	{
@@ -41,7 +46,10 @@ namespace rad
 		void UpdateGameObjects();
 		void UpdateLights();
 
-		void Clear(float clearColor[]);
+		void RenderGameObjects();
+		void ShadowRenderPass();
+
+		void Clear();
 		void Present();
 
 		ShaderModule* GetShaderModule(const std::wstring& name);
@@ -67,11 +75,13 @@ namespace rad
 		wrl::ComPtr<ID3D11Debug> m_Debug;
 
 		DepthStencil m_DepthStencil;
+		DepthStencil m_ShadowDepthMap;
 
 		wrl::ComPtr<ID3D11RenderTargetView> m_RenderTargetView;
 
 		wrl::ComPtr<ID3D11DepthStencilState> m_DepthStencilState;
 		wrl::ComPtr<ID3D11RasterizerState> m_RasterizerState;
+		wrl::ComPtr<ID3D11BlendState> m_BlendState;
 
 		D3D11_VIEWPORT m_Viewport = {};
 
@@ -87,15 +97,8 @@ namespace rad
 
 		UIManager m_UIManager;
 
-		struct PerFrameData
-		{
-			dx::XMMATRIX viewMatrix;
-			dx::XMMATRIX projectionMatrix;
-		};
-
 		DirectionalLight m_DirectionalLight;
-		PerFrameData m_PerFrameData;
-
+	
 		ConstantBuffer<PerFrameData> m_PerFrameConstantBuffer;
 	};
 }

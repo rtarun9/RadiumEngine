@@ -17,15 +17,17 @@ namespace rad
 		InitRendererCore();
 
 		LoadContent();
+		
+		m_ShadowDepthMap.Init(m_Device, m_Width, m_Height, DSType::ShadowDepth);
 	}
 
 	void Engine::OnUpdate(float deltaTime)
 	{
 		m_Camera.Update(deltaTime);
 
-		m_PerFrameData.viewMatrix = m_Camera.GetViewMatrix();
+		m_PerFrameConstantBuffer.m_Data.viewMatrix = m_Camera.GetViewMatrix();
 
-		m_PerFrameConstantBuffer.Update(m_DeviceContext, m_PerFrameData);
+		m_PerFrameConstantBuffer.Update(m_DeviceContext);
 
 		m_DirectionalLight.Update(m_DeviceContext);
 	}
@@ -37,11 +39,7 @@ namespace rad
 		UpdateGameObjects();
 		UpdateLights();
 
-		m_DeviceContext->OMSetRenderTargets(1u, m_RenderTargetView.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
-		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
-
-		float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		Clear(clearColor);
+		m_Camera.UpdateControls();
 
 		m_InputLayout.Bind(m_DeviceContext);
 
@@ -50,23 +48,23 @@ namespace rad
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
+		// Setup for shadow pass
+		ShadowRenderPass();
+		
+		// Setup for Main render pass (for objects)
+		m_DeviceContext->OMSetRenderTargets(1u, m_RenderTargetView.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+	
+		Clear();
+
 		m_Sampler.Bind(m_DeviceContext);
 
 		// Bind constant buffers
 		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext);
-		m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 
 		GetShaderModule(L"DefaultShader")->Bind(m_DeviceContext);
-		
-		for (auto& gameObject : m_GameObjects)
-		{
-			auto& object = gameObject.second;
-		
-			object.m_PerObjectConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
-			
-			// Seems to be MASSIVE FPS drops - Profiling is required.
-			object.Draw(m_DeviceContext);
-		}
+		m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
+		RenderGameObjects();
 
 		m_UIManager.Render();
 
@@ -93,25 +91,25 @@ namespace rad
 
 	void Engine::LoadContent()
 	{
-		m_Sampler.Init(m_Device, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_Sampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
 		m_PerFrameConstantBuffer.Init(m_Device);
 
 		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", L"VsMain");
 		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", L"PsMain");
 
+		m_Shaders[L"ShadowShader"].vertexShader.Init(m_Device, L"../Shaders/ShadowMapVertex.hlsl", L"VsMain");
+		m_Shaders[L"ShadowShader"].pixelShader.Init(m_Device, L"../Shaders/ShadowMapPixel.hlsl", L"PsMain");
+		
 		m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 
 		m_InputLayout.Init(m_Device, m_Shaders[L"DefaultShader"]);
+		m_InputLayout.Init(m_Device, m_Shaders[L"ShadowShader"]);
 
-		m_PerFrameData.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
+		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
 
 		m_UIManager.Init(m_Device, m_DeviceContext);
-
-		m_DirectionalLight.m_LightData.ambientStrength = 0.1f;
-		m_DirectionalLight.m_LightData.lightColor = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
-		m_DirectionalLight.m_LightData.lightDirection = dx::XMFLOAT4(0.0f, -10.0f, 0.0f, 0.0f);
 
 		m_DirectionalLight.Init(m_Device);
 
@@ -184,7 +182,6 @@ namespace rad
 		depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 		depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS;
 		depthStencilStateDesc.StencilEnable = FALSE;
-
 		ThrowIfFailed(m_Device->CreateDepthStencilState(&depthStencilStateDesc, &m_DepthStencilState));
 
 		D3D11_RASTERIZER_DESC rasterizerStateDesc = {};
@@ -199,10 +196,31 @@ namespace rad
 
 		ThrowIfFailed(m_Device->CreateRasterizerState(&rasterizerStateDesc, &m_RasterizerState));
 
+		D3D11_BLEND_DESC blendDesc = {};
+		D3D11_RENDER_TARGET_BLEND_DESC& renderTargetBlendDesc = blendDesc.RenderTarget[0];
+
+		renderTargetBlendDesc.BlendEnable = TRUE;
+		renderTargetBlendDesc.SrcBlend = D3D11_BLEND_SRC_ALPHA;
+		renderTargetBlendDesc.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+
+		renderTargetBlendDesc.BlendOp = D3D11_BLEND_OP_ADD;
+		
+		renderTargetBlendDesc.SrcBlendAlpha = D3D11_BLEND_ONE;
+		renderTargetBlendDesc.DestBlendAlpha = D3D11_BLEND_ZERO;
+		renderTargetBlendDesc.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
+		renderTargetBlendDesc.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+		blendDesc.AlphaToCoverageEnable = false;
+		blendDesc.IndependentBlendEnable = false;
+		blendDesc.RenderTarget[0] = renderTargetBlendDesc;
+
+		ThrowIfFailed(m_Device->CreateBlendState(&blendDesc, &m_BlendState));
+	
 		m_Viewport = {};
 		m_Viewport.TopLeftX = 0.0f;
 		m_Viewport.TopLeftY = 0.0f;
-		m_Viewport.Width = m_Width;;
+		m_Viewport.Width = m_Width;
 		m_Viewport.Height = m_Height;
 		m_Viewport.MinDepth = 0.0f;
 		m_Viewport.MaxDepth = 1.0f;
@@ -249,13 +267,47 @@ namespace rad
 			ImGui::SliderFloat3("Direction", &m_DirectionalLight.m_LightData.lightDirection.x, -10.0f, 10.0f);
 			ImGui::TreePop();
 		}
-		ImGui::ShowDemoWindow();
 
 		ImGui::End();
 	}
 
-	void Engine::Clear(float clearColor[])
+	void Engine::RenderGameObjects()
 	{
+		for (auto& gameObject : m_GameObjects)
+		{
+			auto& object = gameObject.second;
+
+			object.m_PerObjectConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Object);
+
+			object.Draw(m_DeviceContext);
+		}
+
+	}
+
+	void Engine::ShadowRenderPass()
+	{
+		GetShaderModule(L"ShadowShader")->Bind(m_DeviceContext);
+		m_DirectionalLight.UpdatePerFrameData(m_DeviceContext);
+		m_DirectionalLight.m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
+
+		m_ShadowDepthMap.Clear(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(0u, nullptr, m_ShadowDepthMap.m_DepthStencilView.Get());
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+
+		RenderGameObjects();
+	}
+
+	void Engine::Clear()
+	{
+		// WARNING : This static should technically not be a problem, but find a alternative method for this regardless.
+		// Current problem : Clear Color keeps getting set to 0, 0, 0, 0 as it is a local variable, but making it static prevents this.
+		static float clearColor[4];
+
+		ImGui::Begin("Clear Color");
+		ImGui::ColorPicker4("Clear Color", clearColor);
+		ImGui::End();
+
 		m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), clearColor);
 		m_DepthStencil.Clear(m_DeviceContext);
 	}

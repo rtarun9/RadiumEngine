@@ -16,14 +16,23 @@ namespace rad
 		dx::XMFLOAT4 lightDirection;
 	};
 
+	// Used by and for the shadow pass.
+	struct LightPerFrameData
+	{
+		dx::XMMATRIX lightViewMatrix;
+		dx::XMMATRIX lightProjectionMatrix;
+	};
+
 	class DirectionalLight
 	{
 	public:
 		void Init(const wrl::ComPtr<ID3D11Device>& device);
 		void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void UpdatePerFrameData(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 	public:
 		LightData m_LightData{};
 		ConstantBuffer<LightData> m_LightConstantBuffer;
+		ConstantBuffer<LightPerFrameData> m_PerFrameConstantBuffer;
 	};
 }

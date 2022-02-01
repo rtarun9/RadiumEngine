@@ -17,10 +17,16 @@ namespace rad
 		m_VertexBuffer.Bind(deviceContext);
 		m_IndexBuffer.Bind(deviceContext);
 
-		m_Textures[0].Bind(deviceContext, TextureTypes::TextureDiffuse);
-		m_Textures[1].Bind(deviceContext, TextureTypes::TextureSpecular);
-		m_Textures[1].Bind(deviceContext, TextureTypes::TextureNormal);
-		m_Textures[1].Bind(deviceContext, TextureTypes::TextureHeight);
+		// Not using texture class's binding function here for now since individually binding them is causing some issues (wrong shader resources are getting bound) : Might change soon.
+		ID3D11ShaderResourceView *shaderResourceViews[] =
+		{
+			m_Textures[0].m_TextureView.Get(),
+			m_Textures[1].m_TextureView.Get(),
+			m_Textures[2].m_TextureView.Get(),
+			m_Textures[3].m_TextureView.Get()
+		};
+
+		deviceContext->PSSetShaderResources(0, _countof(shaderResourceViews), shaderResourceViews);
 
 		deviceContext->DrawIndexed(m_Indices.size(), 0, 0);
 	}
