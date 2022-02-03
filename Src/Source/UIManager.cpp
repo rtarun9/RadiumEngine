@@ -37,7 +37,11 @@ namespace rad
 	void UIManager::Render()
 	{
 		ImGui::Render();
-		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+		if (m_DisplayUI)
+		{
+			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+		}
 	}
 
 	void UIManager::Close()
@@ -114,4 +118,5 @@ namespace rad
 		style->TabRounding = 0.0f;
 		style->WindowRounding = 4.0f;
 	}
+
 }

@@ -4,7 +4,7 @@
 
 namespace rad
 {
-	void InputLayout::AddInputElement(const char* semanticName, DXGI_FORMAT format)
+	void InputLayout::AddInputElement(const char *semanticName, DXGI_FORMAT format)
 	{
 		D3D11_INPUT_ELEMENT_DESC inputElementDesc = {};
 		inputElementDesc.SemanticName = semanticName;

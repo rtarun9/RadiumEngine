@@ -10,7 +10,7 @@ namespace rad
 		m_WorldUp(dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), m_CameraFront(m_WorldFront), m_CameraRight(m_WorldRight),
 		m_CameraUp(m_WorldUp), m_CameraTarget(dx::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f)), m_CameraPosition(dx::XMVectorSet(0.0f, 0.0f, -10.0f, 0.0f)),
 		m_Yaw(0.0f), m_Pitch(0.0f), m_ViewMatrix(dx::XMMatrixIdentity()), m_CameraRotationMatrix(dx::XMMatrixIdentity()),
-		m_MovementSpeed(500.0f), m_RotationSpeed(0.05f), m_KeyState{ false }
+		m_MovementSpeed(1000.0f), m_RotationSpeed(0.05f), m_KeyState{ false }
 	{
 	}
 
@@ -18,12 +18,10 @@ namespace rad
 	{
 		// WARNING : Because we are not checking if keycode exist within keymap, any keycode not beloning in it will cause camera to move forward,
 		// To disable this uncomment the code below. It is being left uncommented since this solution is likely not ideal, but can be annoying in some cases.
-		//if (INPUT_MAP.find(keycode) != INPUT_MAP.end())
-		//{
-		//	m_KeyState[INPUT_MAP[keycode]] = isKeyDown;
-		//}
-
-		m_KeyState[INPUT_MAP[keycode]] = isKeyDown;
+		if (INPUT_MAP.find(keycode) != INPUT_MAP.end())
+		{
+			m_KeyState[INPUT_MAP[keycode]] = isKeyDown;
+		}
 	}
 
 
@@ -84,7 +82,7 @@ namespace rad
 	void Camera::UpdateControls()
 	{
 		ImGui::Begin("Camera Controls");
-		ImGui::SliderFloat("Movement Speed", &m_MovementSpeed, 0.0f, 1000.0f);
+		ImGui::SliderFloat("Movement Speed", &m_MovementSpeed, 0.0f, 5000.0f);
 		ImGui::SliderFloat("Rotation Speed", &m_RotationSpeed, 0.0f, 10.0f);
 		ImGui::End();
 	}

@@ -18,6 +18,7 @@ namespace rad
 
 		void Clear(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, float depthValue = 1.0f, float stencilValue = 0.0f);
 
+		// Used to create a shader resource view for the depth buffer.
 		wrl::ComPtr<ID3D11ShaderResourceView> ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 
 	public:

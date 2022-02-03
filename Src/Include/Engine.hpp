@@ -19,6 +19,9 @@ namespace rad
 	{
 		dx::XMMATRIX viewMatrix;
 		dx::XMMATRIX projectionMatrix;
+
+		dx::XMMATRIX lightViewMatrix;
+		dx::XMMATRIX lightProjectionMatrix;
 	};
 
 	class Engine
@@ -89,7 +92,8 @@ namespace rad
 		std::unordered_map<std::wstring, ShaderModule> m_Shaders;
 		std::unordered_map<std::wstring, Model> m_GameObjects;
 
-		TextureSampler m_Sampler;
+		TextureSampler m_WrapSampler;
+		TextureSampler m_ClampSampler;
 
 		InputLayout m_InputLayout;
 

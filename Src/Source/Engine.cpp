@@ -18,7 +18,7 @@ namespace rad
 
 		LoadContent();
 		
-		m_ShadowDepthMap.Init(m_Device, m_Width, m_Height, DSType::ShadowDepth);
+		m_ShadowDepthMap.Init(m_Device, DirectionalLight::SHADOW_MAP_DIMENSION, DirectionalLight::SHADOW_MAP_DIMENSION, DSType::ShadowDepth);
 	}
 
 	void Engine::OnUpdate(float deltaTime)
@@ -26,6 +26,8 @@ namespace rad
 		m_Camera.Update(deltaTime);
 
 		m_PerFrameConstantBuffer.m_Data.viewMatrix = m_Camera.GetViewMatrix();
+		m_PerFrameConstantBuffer.m_Data.lightViewMatrix = m_DirectionalLight.m_PerFrameConstantBuffer.m_Data.lightViewMatrix;
+		m_PerFrameConstantBuffer.m_Data.lightProjectionMatrix = m_DirectionalLight.m_PerFrameConstantBuffer.m_Data.lightProjectionMatrix;
 
 		m_PerFrameConstantBuffer.Update(m_DeviceContext);
 
@@ -57,18 +59,34 @@ namespace rad
 	
 		Clear();
 
-		m_Sampler.Bind(m_DeviceContext);
+		// As shadow map is modifying viewport this is necessary,
+		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
+
+		m_WrapSampler.Bind(m_DeviceContext);
+		m_ClampSampler.Bind(m_DeviceContext, 1);
 
 		// Bind constant buffers
 		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext);
 
 		GetShaderModule(L"DefaultShader")->Bind(m_DeviceContext);
 		m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
+
+		wrl::ComPtr<ID3D11ShaderResourceView> depthMapShaderResourceView = m_ShadowDepthMap.ConvertToSRV(m_Device, m_DeviceContext);
+		m_DeviceContext->PSSetShaderResources(4, 1, depthMapShaderResourceView.GetAddressOf());
+
 		RenderGameObjects();
+
+		// NOTE : Setting shader resource at slot 4 does cause warnings : Need to debug it.
+		m_DeviceContext->PSSetShaderResources(4, 0, nullptr);
+
+		ImGui::Begin("Shadow Depth Buffer");
+		ImGui::Image((void*)depthMapShaderResourceView.Get(), ImVec2(500, 500));
+		ImGui::End();
 
 		m_UIManager.Render();
 
 		Present();
+
 	}
 
 	void Engine::OnDestroy()
@@ -82,20 +100,32 @@ namespace rad
 	void Engine::OnKeyDown(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, true);
+
+		if (keycode == VK_SPACE)
+		{
+			m_UIManager.m_DisplayUI = false;
+		}
 	}
 
 	void Engine::OnKeyUp(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, false);
+
+		if (keycode == VK_SPACE)
+		{
+			m_UIManager.m_DisplayUI = true;
+		}
 	}
 
 	void Engine::LoadContent()
 	{
-		m_Sampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_WrapSampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_ClampSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP);
+
 		m_PerFrameConstantBuffer.Init(m_Device);
 
-		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/BlinnVertex.hlsl", L"VsMain");
-		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/BlinnPixel.hlsl", L"PsMain");
+		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/TestVertex.hlsl", L"VsMain");
+		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/TestPixel.hlsl", L"PsMain");
 
 		m_Shaders[L"ShadowShader"].vertexShader.Init(m_Device, L"../Shaders/ShadowMapVertex.hlsl", L"VsMain");
 		m_Shaders[L"ShadowShader"].pixelShader.Init(m_Device, L"../Shaders/ShadowMapPixel.hlsl", L"PsMain");
@@ -107,7 +137,7 @@ namespace rad
 		m_InputLayout.Init(m_Device, m_Shaders[L"DefaultShader"]);
 		m_InputLayout.Init(m_Device, m_Shaders[L"ShadowShader"]);
 
-		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 1000.0f);
+		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 10000.0f);
 
 		m_UIManager.Init(m_Device, m_DeviceContext);
 
@@ -263,8 +293,12 @@ namespace rad
 		if (ImGui::TreeNode("Directional Light"))
 		{
 			ImGui::SliderFloat("Ambient Strength", &m_DirectionalLight.m_LightData.ambientStrength, 0.0f, 10.0f);
-			ImGui::ColorPicker3("Color", &m_DirectionalLight.m_LightData.lightColor.x);
-			ImGui::SliderFloat3("Direction", &m_DirectionalLight.m_LightData.lightDirection.x, -10.0f, 10.0f);
+			ImGui::ColorEdit3("Color", &m_DirectionalLight.m_LightData.lightColor.x);
+			ImGui::SliderFloat("Sun Direction", &m_DirectionalLight.m_SunAngle, -90.0f, 90.0f);
+			ImGui::SliderFloat("Extents", &m_DirectionalLight.m_Extents, 30.0f, 200.0f);
+			ImGui::SliderFloat("Near Plane", &m_DirectionalLight.m_NearPlane, 0.1f, 1000.0f);
+			ImGui::SliderFloat("Far Plane", &m_DirectionalLight.m_FarPlane, 10.0f, 1000.0f);
+			ImGui::SliderFloat("Back off distance", &m_DirectionalLight.m_BackOffDistance, 0.6f, 500.0f);
 			ImGui::TreePop();
 		}
 
@@ -287,13 +321,25 @@ namespace rad
 	void Engine::ShadowRenderPass()
 	{
 		GetShaderModule(L"ShadowShader")->Bind(m_DeviceContext);
-		m_DirectionalLight.UpdatePerFrameData(m_DeviceContext);
 		m_DirectionalLight.m_PerFrameConstantBuffer.BindVS(m_DeviceContext, ConstantBuffers::CB_Frame);
 
-		m_ShadowDepthMap.Clear(m_DeviceContext);
-
+		// NOTE : Not setting RTV Will cause warnings to emit, but they are fine since this behaviour is INTENDED.
+		// The warning D3D11 WARNING: ID3D11DeviceContext::DrawIndexed: The Pixel Shader expects a Render Target View bound to slot 0, but none is bound. This is OK, as writes of an unbound Render Target View are discarded. It is also possible the developer knows the data will not be used anyway. This is only a problem if the developer actually intended to bind a Render Target View here. [ EXECUTION WARNING #3146081: DEVICE_DRAW_RENDERTARGETVIEW_NOT_SET]
+		// Can be ignored.
 		m_DeviceContext->OMSetRenderTargets(0u, nullptr, m_ShadowDepthMap.m_DepthStencilView.Get());
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+
+		D3D11_VIEWPORT shadowViewport = {};
+		shadowViewport.TopLeftX = 0.0f;
+		shadowViewport.TopLeftY = 0.0f;
+		shadowViewport.Width = DirectionalLight::SHADOW_MAP_DIMENSION;
+		shadowViewport.Height = DirectionalLight::SHADOW_MAP_DIMENSION;
+		shadowViewport.MinDepth = 0.0f;
+		shadowViewport.MaxDepth = 1.0f;
+
+		m_DeviceContext->RSSetViewports(1u, &shadowViewport);
+
+		m_ShadowDepthMap.Clear(m_DeviceContext, 0.5f, 0.0f);
 
 		RenderGameObjects();
 	}

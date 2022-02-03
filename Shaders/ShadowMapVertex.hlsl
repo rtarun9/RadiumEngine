@@ -20,7 +20,6 @@ struct VSInput
 struct PSInput
 {
     float4 position : SV_Position;
-    float depth : DEPTH;
 };
 
 PSInput VsMain(VSInput input)
@@ -29,6 +28,5 @@ PSInput VsMain(VSInput input)
 	
     PSInput psInput;
     psInput.position = mul(mvpMatrix, float4(input.position, 1.0f));
-    psInput.depth = psInput.position.z;
     return psInput;
 }

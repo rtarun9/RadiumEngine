@@ -24,16 +24,24 @@ namespace rad
 		textureDesc.ArraySize = 1;
 		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		textureDesc.SampleDesc.Count = 1;
-		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
 		D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
 		textureSubresourceData.pSysMem = texture;
 		textureSubresourceData.SysMemPitch = textureBytesPerRow;
+		textureSubresourceData.SysMemSlicePitch = 0;
+
+		// Create texture view
+		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+		shaderResourceViewDesc.Format = textureDesc.Format;
+		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		shaderResourceViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 
 		ThrowIfFailed(device->CreateTexture2D(&textureDesc, &textureSubresourceData, &m_Texture));
 
-		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), nullptr, &m_TextureView));
+		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView));
 
 		stbi_image_free(texture);
 	}

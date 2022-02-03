@@ -17,6 +17,9 @@ namespace rad
 
 		// From here : https://github.com/ocornut/imgui/issues/707	
 		void SetCustomDarkTheme();
+
+	public:
+		bool m_DisplayUI{true};
 	};
 }
 
