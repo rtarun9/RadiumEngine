@@ -4,7 +4,8 @@ cbuffer LightData : register(b0)
     float ambientStrength;
     float3 lightColor;
 
-    float4 lightDirection;
+    float lightStrength;
+    float3 lightDirection;
 };
 
 Texture2D diffuseTexture : register(t0);
@@ -27,6 +28,7 @@ struct PSInput
     float2 texCoord : TEXCOORD;
     float3 color : COLOR;
     float4 lightTransformedPosition : LIGHT_SPACE_POSITION;
+    float3x3 TBN : TBN_MATRIX;
 };
 
 float CalculateShadow(PSInput input)
@@ -81,19 +83,22 @@ float4 CalculateDiffuseLight(float3 normal, PSInput input)
 
 float4 PsMain(PSInput input) : SV_Target
 {
-    const float GAMMA = 2.2f;
     float4 diffTexture = diffuseTexture.Sample(textureSampler, input.texCoord);
     float alpha = diffTexture.a;
     
     // Doesnt work as expected, should be fine as long as clear color is black.
     clip(alpha < 0.1f ? -1 : 1);
 
+    float3 normal = normalTexture.Sample(clampTextureSampler, input.texCoord).xyz;
+    // Convert to -1, 1 range
+    normal = normal * 2.0f - float3(1.0f, 1.0f, 1.0f);
+    normal = normalize(mul(input.TBN, normal));
+
     float shadowResult = CalculateShadow(input);
-    float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(input.normal), input) * shadowResult);
+    float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(input.normal), input) * shadowResult * lightStrength);
 
     float4 result = float4(lightColor, 1.0f) * lightCalculationResult * diffTexture;
 
-    result = pow(result, 1 / GAMMA);
     result.a = alpha;
 
     return result;

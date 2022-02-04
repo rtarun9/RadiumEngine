@@ -23,6 +23,8 @@ namespace rad
 
 		ImGui_ImplWin32_Init(Application::GetWindowHandle());
 		ImGui_ImplDX11_Init(device.Get(), deviceContext.Get());
+		
+		ImGui::GetIO().IniFilename = "../imgui.ini";
 	}
 
 	void UIManager::FrameBegin()
@@ -117,6 +119,13 @@ namespace rad
 		style->TabBorderSize = 1.0f;
 		style->TabRounding = 0.0f;
 		style->WindowRounding = 4.0f;
+	}
+
+	void UIManager::ShowMetrics()
+	{
+		ImGui::Begin("Metrics");
+		ImGui::ShowMetricsWindow();
+		ImGui::End();
 	}
 
 }

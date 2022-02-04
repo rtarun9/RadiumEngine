@@ -18,7 +18,11 @@ namespace rad
 		// From here : https://github.com/ocornut/imgui/issues/707	
 		void SetCustomDarkTheme();
 
+		void ShowMetrics();
+
 	public:
+		static constexpr int IMAGE_DIMENSIONS = 500;
+
 		bool m_DisplayUI{true};
 	};
 }

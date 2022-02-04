@@ -12,7 +12,6 @@ namespace rad
 		flags = D3DCOMPILE_DEBUG;
 #endif
 
-		auto x = WStringToString(entryPoint);
 		HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, WStringToString(entryPoint).c_str(), WStringToString(shaderProfile).c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
 
 		if (FAILED(hr))

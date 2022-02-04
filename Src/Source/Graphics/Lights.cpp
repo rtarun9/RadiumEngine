@@ -4,10 +4,10 @@ namespace rad
 {
 	void DirectionalLight::Init(const wrl::ComPtr<ID3D11Device>& device)
 	{
-		m_LightData.ambientStrength = 0.00f;
+		m_LightData.ambientStrength = 0.04f;
 		m_LightData.lightColor = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
-		m_LightData.lightDirection = dx::XMFLOAT4(0.0f, sin(dx::XMConvertToRadians(m_SunAngle)), cos(dx::XMConvertToRadians(m_SunAngle)), 0.0f);
-
+		m_LightData.lightDirection = dx::XMFLOAT3(0.0f, sin(dx::XMConvertToRadians(m_SunAngle)), cos(dx::XMConvertToRadians(m_SunAngle)));
+		m_LightData.lightStrength = 1.0f;
 		m_LightConstantBuffer.Init(device);
 
 		m_PerFrameConstantBuffer.Init(device);
@@ -18,8 +18,8 @@ namespace rad
 	{
 		m_LightConstantBuffer.Update(deviceContext, m_LightData);
 
-		m_LightData.lightDirection = dx::XMFLOAT4(0.0f, sin(dx::XMConvertToRadians(m_SunAngle)), cos(dx::XMConvertToRadians(m_SunAngle)), 0.0f);
-		dx::XMFLOAT4 lightDirection = m_LightData.lightDirection;
+		m_LightData.lightDirection = dx::XMFLOAT3(0.0f, sin(dx::XMConvertToRadians(m_SunAngle)), cos(dx::XMConvertToRadians(m_SunAngle)));
+		dx::XMFLOAT4 lightDirection = dx::XMFLOAT4(m_LightData.lightDirection.x, m_LightData.lightDirection.y, m_LightData.lightDirection.z, 0.0f);
 
 		dx::XMVECTOR eyePosition = dx::XMLoadFloat4(&lightDirection);
 		eyePosition = dx::XMVector4Normalize(eyePosition);

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 #include "Graphics/Shader.hpp"

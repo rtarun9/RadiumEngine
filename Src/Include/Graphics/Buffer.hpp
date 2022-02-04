@@ -61,17 +61,6 @@ namespace rad
 		UINT m_VerticesCount = 0;
 	};
 
-	class IndexBuffer : public Buffer
-	{
-	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices);
-
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
-
-	public:
-		UINT m_Size{ 0 };
-	};
-
 	template <typename T>
 	class ConstantBuffer : public Buffer
 	{
@@ -111,5 +100,16 @@ namespace rad
 
 	public:
 		T m_Data = {};
+	};
+
+	class IndexBuffer : public Buffer
+	{
+	public:
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices);
+
+		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+
+	public:
+		UINT m_Size{ 0 };
 	};
 }

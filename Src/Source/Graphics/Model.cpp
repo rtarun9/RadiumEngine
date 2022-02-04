@@ -73,11 +73,27 @@ namespace rad
 			{
 				vertex.texCoords.x = mesh->mTextureCoords[0][i].x;
 				vertex.texCoords.y = mesh->mTextureCoords[0][i].y;
+			
+				vertex.tangent.x = mesh->mTangents[i].x;
+				vertex.tangent.y = mesh->mTangents[i].y;
+				vertex.tangent.z = mesh->mTangents[i].z;
+
+				vertex.bitangent.x = mesh->mBitangents[i].x;
+				vertex.bitangent.y = mesh->mBitangents[i].y;
+				vertex.bitangent.z = mesh->mBitangents[i].z;
 			}
 			else
 			{
 				vertex.texCoords.x = 0;
 				vertex.texCoords.y = 0;
+
+				vertex.tangent.x = 0;
+				vertex.tangent.y = 0;
+				vertex.tangent.z = 0;
+
+				vertex.bitangent.x = 0;
+				vertex.bitangent.y = 0;
+				vertex.bitangent.z = 0;
 			}
 
 			vertices.push_back(vertex);
@@ -178,7 +194,15 @@ namespace rad
 
 				std::wstring path = m_ModelDirectory + StringToWString(str.C_Str());
 
-				texture.Init(device, path);
+				if (type == TextureTypes::TextureDiffuse || type == TextureTypes::TextureSpecular)
+				{
+					texture.Init(device, path, true);
+				}
+				else
+				{
+					texture.Init(device, path, false);
+				}
+
 				textures.push_back(texture);
 
 				m_LoadedTextures.push_back({ StringToWString(str.C_Str()), texture });

@@ -8,7 +8,7 @@
 namespace rad
 {
 	// NOTE : Will need to make between aiTextureTypes and custom TextureType in future (similar to approach taken for
-	//	      WIN32 virtual key codes and custom key types. 
+	//	      WIN32 virtual key codes and custom key types). 
 	enum TextureTypes
 	{
 		TextureDiffuse,
@@ -23,6 +23,8 @@ namespace rad
 		dx::XMFLOAT3 position;
 		dx::XMFLOAT3 normal;
 		dx::XMFLOAT2 texCoords;
+		dx::XMFLOAT3 tangent;
+		dx::XMFLOAT3 bitangent;
 	};
 
 	struct Transform

@@ -17,8 +17,6 @@ namespace rad
 		InitRendererCore();
 
 		LoadContent();
-		
-		m_ShadowDepthMap.Init(m_Device, DirectionalLight::SHADOW_MAP_DIMENSION, DirectionalLight::SHADOW_MAP_DIMENSION, DSType::ShadowDepth);
 	}
 
 	void Engine::OnUpdate(float deltaTime)
@@ -32,6 +30,8 @@ namespace rad
 		m_PerFrameConstantBuffer.Update(m_DeviceContext);
 
 		m_DirectionalLight.Update(m_DeviceContext);
+
+		m_OffscreenRT.Update(m_DeviceContext);
 	}
 
 	void Engine::OnRender()
@@ -54,7 +54,7 @@ namespace rad
 		ShadowRenderPass();
 		
 		// Setup for Main render pass (for objects)
-		m_DeviceContext->OMSetRenderTargets(1u, m_RenderTargetView.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
+		m_DeviceContext->OMSetRenderTargets(1u, m_OffscreenRT.m_RTV.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 	
 		Clear();
@@ -76,11 +76,27 @@ namespace rad
 
 		RenderGameObjects();
 
-		// NOTE : Setting shader resource at slot 4 does cause warnings : Need to debug it.
-		m_DeviceContext->PSSetShaderResources(4, 0, nullptr);
+		// NOTE : Setting shader resource at slot 4 does cause warnings. This workaround fixes it.
+		ID3D11ShaderResourceView *nullSRVs[] =
+		{
+			nullptr
+		};
 
+		m_DeviceContext->PSSetShaderResources(4, 1, nullSRVs);
+
+		// Apply Bloom
+		BloomPass();
+
+		// Apply any more postprocessing, and render to swapchain's backbuffer.
+		RenderPass();
+		
+		// FOR DEBUGGING ONLY : Render the SRV's onto ImGui::Image.
 		ImGui::Begin("Shadow Depth Buffer");
-		ImGui::Image((void*)depthMapShaderResourceView.Get(), ImVec2(500, 500));
+		ImGui::Image((void*)depthMapShaderResourceView.Get(), ImVec2(UIManager::IMAGE_DIMENSIONS, UIManager::IMAGE_DIMENSIONS));
+		ImGui::End();
+
+		ImGui::Begin("Offscreen RT");
+		ImGui::Image((void*)m_OffscreenRT.m_SRV.Get(), ImVec2(UIManager::IMAGE_DIMENSIONS, UIManager::IMAGE_DIMENSIONS));
 		ImGui::End();
 
 		m_UIManager.Render();
@@ -119,10 +135,7 @@ namespace rad
 
 	void Engine::LoadContent()
 	{
-		m_WrapSampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
-		m_ClampSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP);
-
-		m_PerFrameConstantBuffer.Init(m_Device);
+		m_UIManager.Init(m_Device, m_DeviceContext);
 
 		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/TestVertex.hlsl", L"VsMain");
 		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/TestPixel.hlsl", L"PsMain");
@@ -130,21 +143,37 @@ namespace rad
 		m_Shaders[L"ShadowShader"].vertexShader.Init(m_Device, L"../Shaders/ShadowMapVertex.hlsl", L"VsMain");
 		m_Shaders[L"ShadowShader"].pixelShader.Init(m_Device, L"../Shaders/ShadowMapPixel.hlsl", L"PsMain");
 		
+		m_Shaders[L"RenderTargetShader"].vertexShader.Init(m_Device, L"../Shaders/RenderTargetVertex.hlsl", L"VsMain");
+		m_Shaders[L"RenderTargetShader"].pixelShader.Init(m_Device, L"../Shaders/RenderTargetPixel.hlsl", L"PsMain");
+
 		m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
 		m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+		m_InputLayout.AddInputElement("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_InputLayout.AddInputElement("BITANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
 
 		m_InputLayout.Init(m_Device, m_Shaders[L"DefaultShader"]);
 		m_InputLayout.Init(m_Device, m_Shaders[L"ShadowShader"]);
 
+		m_RenderTargetInputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+		m_RenderTargetInputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+
+		m_RenderTargetInputLayout.Init(m_Device, m_Shaders[L"RenderTargetShader"]);
+		
+		m_OffscreenRT.Init(m_Device, m_Width, m_Height);
+		
+		m_WrapSampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_ClampSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP);
+
+		m_PerFrameConstantBuffer.Init(m_Device);
 		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 10000.0f);
-
-		m_UIManager.Init(m_Device, m_DeviceContext);
-
-		m_DirectionalLight.Init(m_Device);
 
 		m_GameObjects[L"Sponza"].Init(m_Device, L"../Assets/Models/Sponza/glTF/Sponza.gltf");
 		m_GameObjects[L"Sponza"].m_Transform.scale = dx::XMFLOAT3(0.1f, 0.1f, 0.1f);
+
+		m_DirectionalLight.Init(m_Device);
+		
+		m_ShadowDepthMap.Init(m_Device, DirectionalLight::SHADOW_MAP_DIMENSION, DirectionalLight::SHADOW_MAP_DIMENSION, DSType::ShadowDepth);
 	}
 
 	uint32_t Engine::GetWidth() const
@@ -293,6 +322,7 @@ namespace rad
 		if (ImGui::TreeNode("Directional Light"))
 		{
 			ImGui::SliderFloat("Ambient Strength", &m_DirectionalLight.m_LightData.ambientStrength, 0.0f, 10.0f);
+			ImGui::SliderFloat("Light Strength", &m_DirectionalLight.m_LightData.lightStrength, 0.5f, 50.0f);
 			ImGui::ColorEdit3("Color", &m_DirectionalLight.m_LightData.lightColor.x);
 			ImGui::SliderFloat("Sun Direction", &m_DirectionalLight.m_SunAngle, -90.0f, 90.0f);
 			ImGui::SliderFloat("Extents", &m_DirectionalLight.m_Extents, 30.0f, 200.0f);
@@ -342,6 +372,33 @@ namespace rad
 		m_ShadowDepthMap.Clear(m_DeviceContext, 0.5f, 0.0f);
 
 		RenderGameObjects();
+	}
+
+	void Engine::BloomPass()
+	{
+
+	}
+
+	void Engine::RenderPass()
+	{
+		// Not sure if I should make UpdateRenderpass function for updating variables such as the exposure, just leaving it in here for now.
+		m_RenderTargetInputLayout.Bind(m_DeviceContext);
+
+		ImGui::Begin("Render Target Control");
+		ImGui::SliderFloat("Exposure", &m_OffscreenRT.m_RTConstantBuffer.m_Data.exposure, 0.5f, 5.0f);
+		ImGui::End();
+		
+		GetShaderModule(L"RenderTargetShader")->Bind(m_DeviceContext);
+
+		m_OffscreenRT.Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1,m_RenderTargetView.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+		
+		m_DeviceContext->PSSetShaderResources(0, 1, m_OffscreenRT.m_SRV.GetAddressOf());
+		m_ClampSampler.Bind(m_DeviceContext);
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
 	}
 
 	void Engine::Clear()

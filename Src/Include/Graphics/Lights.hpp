@@ -9,11 +9,11 @@ namespace rad
 	// Will be constant buffer
 	struct LightData
 	{
-		// lightDirection is float4 due to padding reasons.
 		float ambientStrength;
 		dx::XMFLOAT3 lightColor;
 
-		dx::XMFLOAT4 lightDirection;
+		float lightStrength;
+		dx::XMFLOAT3 lightDirection;
 	};
 
 	// Used by and for the shadow pass.

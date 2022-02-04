@@ -12,6 +12,7 @@
 #include "Graphics/Texture.hpp"
 #include "Graphics/TextureSampler.hpp"
 #include "Graphics/Lights.hpp"
+#include "Graphics/RenderTarget.hpp"
 
 namespace rad
 {
@@ -46,11 +47,14 @@ namespace rad
 
 	private:
 		void InitRendererCore();
+
 		void UpdateGameObjects();
 		void UpdateLights();
 
 		void RenderGameObjects();
 		void ShadowRenderPass();
+		void BloomPass();
+		void RenderPass();
 
 		void Clear();
 		void Present();
@@ -91,11 +95,14 @@ namespace rad
 		// Application specific variables.
 		std::unordered_map<std::wstring, ShaderModule> m_Shaders;
 		std::unordered_map<std::wstring, Model> m_GameObjects;
+		
+		RenderTarget m_OffscreenRT;
 
 		TextureSampler m_WrapSampler;
 		TextureSampler m_ClampSampler;
 
 		InputLayout m_InputLayout;
+		InputLayout m_RenderTargetInputLayout;
 
 		Camera m_Camera;
 

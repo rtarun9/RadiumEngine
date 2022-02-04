@@ -1,12 +1,11 @@
 #pragma once
 
-#include <assimp/scene.h>
-
 #include "Pch.hpp"
 
+#include "Mesh.hpp"
 #include "Graphics/Buffer.hpp"
 
-#include "Mesh.hpp"
+#include <assimp/scene.h>
 
 namespace rad
 {
