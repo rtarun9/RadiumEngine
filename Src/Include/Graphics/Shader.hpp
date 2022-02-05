@@ -2,6 +2,8 @@
 
 #include "Pch.hpp"
 
+#include "InputLayout.hpp"
+
 namespace rad
 {
 	class Shader
@@ -43,6 +45,8 @@ namespace rad
 	{
 		VertexShader vertexShader{};
 		PixelShader pixelShader{};
+
+		InputLayout inputLayout{};
 
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 	};

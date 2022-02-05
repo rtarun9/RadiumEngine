@@ -2,8 +2,6 @@
 
 #include "Pch.hpp"
 
-#include "Graphics/Shader.hpp"
-
 namespace rad
 {
 	class InputLayout
@@ -13,7 +11,7 @@ namespace rad
 		// Once solution is found, it too will use std::wstring again.
 		void AddInputElement(const char *semanticName, DXGI_FORMAT format);
 
-		void Init(const wrl::ComPtr<ID3D11Device>& device, ShaderModule& shaderModule);
+		void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3DBlob>& vertexBlob);
 
 		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
 

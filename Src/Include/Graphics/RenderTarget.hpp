@@ -21,7 +21,7 @@ namespace rad
 	// is being renderered, hence playing it here.
 	struct RTConstantBuffer
 	{
-		float exposure;
+		float value;
 		dx::XMFLOAT3 padding;
 	};
 
@@ -38,10 +38,10 @@ namespace rad
 		VertexBuffer<RTVertex> m_Vertices;
 		IndexBuffer m_IndexBuffer;
 
-		ConstantBuffer<RTConstantBuffer> m_RTConstantBuffer;
-
 		D3D11_VIEWPORT m_Viewport{};
-
+		
+		ConstantBuffer<RTConstantBuffer> m_RTConstantBuffer;
+		
 		wrl::ComPtr<ID3D11Texture2D> m_Texture;
 		wrl::ComPtr<ID3D11RenderTargetView> m_RTV;
 		wrl::ComPtr<ID3D11ShaderResourceView> m_SRV;

@@ -32,6 +32,8 @@ namespace rad
 		m_DirectionalLight.Update(m_DeviceContext);
 
 		m_OffscreenRT.Update(m_DeviceContext);
+		m_BloomPreFilterRT.Update(m_DeviceContext);
+
 	}
 
 	void Engine::OnRender()
@@ -42,8 +44,6 @@ namespace rad
 		UpdateLights();
 
 		m_Camera.UpdateControls();
-
-		m_InputLayout.Bind(m_DeviceContext);
 
 		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -99,6 +99,10 @@ namespace rad
 		ImGui::Image((void*)m_OffscreenRT.m_SRV.Get(), ImVec2(UIManager::IMAGE_DIMENSIONS, UIManager::IMAGE_DIMENSIONS));
 		ImGui::End();
 
+		ImGui::Begin("Bloom Pass RT");
+		ImGui::Image((void*)m_BloomPreFilterRT.m_SRV.Get(), ImVec2(UIManager::IMAGE_DIMENSIONS, UIManager::IMAGE_DIMENSIONS));
+		ImGui::End();
+
 		m_UIManager.Render();
 
 		Present();
@@ -137,42 +141,99 @@ namespace rad
 	{
 		m_UIManager.Init(m_Device, m_DeviceContext);
 
+		// Setup default (test) shader
 		m_Shaders[L"DefaultShader"].vertexShader.Init(m_Device, L"../Shaders/TestVertex.hlsl", L"VsMain");
 		m_Shaders[L"DefaultShader"].pixelShader.Init(m_Device, L"../Shaders/TestPixel.hlsl", L"PsMain");
 
+		m_Shaders[L"DefaultShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"DefaultShader"].inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"DefaultShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"DefaultShader"].inputLayout.AddInputElement("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"DefaultShader"].inputLayout.AddInputElement("BITANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+
+		m_Shaders[L"DefaultShader"].inputLayout.Init(m_Device, m_Shaders[L"DefaultShader"].vertexShader.GetBytecodeBlob());
+		
+		// Setup shadow shader
 		m_Shaders[L"ShadowShader"].vertexShader.Init(m_Device, L"../Shaders/ShadowMapVertex.hlsl", L"VsMain");
 		m_Shaders[L"ShadowShader"].pixelShader.Init(m_Device, L"../Shaders/ShadowMapPixel.hlsl", L"PsMain");
-		
+
+		m_Shaders[L"ShadowShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"ShadowShader"].inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"ShadowShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"ShadowShader"].inputLayout.AddInputElement("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"ShadowShader"].inputLayout.AddInputElement("BITANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+
+		m_Shaders[L"ShadowShader"].inputLayout.Init(m_Device, m_Shaders[L"ShadowShader"].vertexShader.GetBytecodeBlob());
+
+		// Setup Render target shader
 		m_Shaders[L"RenderTargetShader"].vertexShader.Init(m_Device, L"../Shaders/RenderTargetVertex.hlsl", L"VsMain");
 		m_Shaders[L"RenderTargetShader"].pixelShader.Init(m_Device, L"../Shaders/RenderTargetPixel.hlsl", L"PsMain");
 
-		m_InputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
-		m_InputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
-		m_InputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
-		m_InputLayout.AddInputElement("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
-		m_InputLayout.AddInputElement("BITANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+		m_Shaders[L"RenderTargetShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"RenderTargetShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 
-		m_InputLayout.Init(m_Device, m_Shaders[L"DefaultShader"]);
-		m_InputLayout.Init(m_Device, m_Shaders[L"ShadowShader"]);
-
-		m_RenderTargetInputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
-		m_RenderTargetInputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
-
-		m_RenderTargetInputLayout.Init(m_Device, m_Shaders[L"RenderTargetShader"]);
+		m_Shaders[L"RenderTargetShader"].inputLayout.Init(m_Device, m_Shaders[L"RenderTargetShader"].vertexShader.GetBytecodeBlob());
 		
-		m_OffscreenRT.Init(m_Device, m_Width, m_Height);
-		
-		m_WrapSampler.Init(m_Device, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP);
-		m_ClampSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP);
+		// Setup shader for bloom
+		m_Shaders[L"BloomPrefilterShader"].vertexShader.Init(m_Device, L"../Shaders/Bloom/BloomPrefilterVertex.hlsl", L"VsMain");
+		m_Shaders[L"BloomPrefilterShader"].pixelShader.Init(m_Device, L"../Shaders/Bloom/BloomPrefilterPixel.hlsl", L"PsMain");
 
+		m_Shaders[L"BloomPrefilterShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"BloomPrefilterShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+
+		m_Shaders[L"BloomPrefilterShader"].inputLayout.Init(m_Device, m_Shaders[L"BloomPrefilterShader"].vertexShader.GetBytecodeBlob());
+
+		m_Shaders[L"BloomPassShader"].vertexShader.Init(m_Device, L"../Shaders/Bloom/BloomPassVertex.hlsl", L"VsMain");
+		m_Shaders[L"BloomPassShader"].pixelShader.Init(m_Device, L"../Shaders/Bloom/BloomPassPixel.hlsl", L"PsMain");
+
+		m_Shaders[L"BloomPassShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"BloomPassShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+
+		m_Shaders[L"BloomPassShader"].inputLayout.Init(m_Device, m_Shaders[L"BloomPassShader"].vertexShader.GetBytecodeBlob());
+
+		// setup up for the blur shaders.
+		m_Shaders[L"BlurShader"].vertexShader.Init(m_Device, L"../Shaders/Bloom/BlurVertex.hlsl", L"VsMain");
+		m_Shaders[L"BlurShader"].pixelShader.Init(m_Device, L"../Shaders/Bloom/BlurPixel.hlsl", L"PsMain");
+
+		m_Shaders[L"BlurShader"].inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+		m_Shaders[L"BlurShader"].inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+
+		m_Shaders[L"BlurShader"].inputLayout.Init(m_Device, m_Shaders[L"BlurShader"].vertexShader.GetBytecodeBlob());
+
+		// Setup for samplers.
+		m_WrapSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_ClampSampler.Init(m_Device, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP);
+
+		// Setup constant buffers
 		m_PerFrameConstantBuffer.Init(m_Device);
 		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 10000.0f);
 
+		// Setup for game objects
 		m_GameObjects[L"Sponza"].Init(m_Device, L"../Assets/Models/Sponza/glTF/Sponza.gltf");
 		m_GameObjects[L"Sponza"].m_Transform.scale = dx::XMFLOAT3(0.1f, 0.1f, 0.1f);
 
 		m_DirectionalLight.Init(m_Device);
-		
+
+		// Setup Render targets.
+		m_OffscreenRT.Init(m_Device, m_Width, m_Height);
+
+		// Setup bloom RT's
+		m_BloomPreFilterRT.Init(m_Device, m_Width, m_Height);
+
+		int previousPassWidth = m_Width;
+		int previousPassHeight = m_Height;
+		for (int i = 0; i < BLOOM_PASSES; i++)
+		{
+			previousPassWidth /= 2;
+			previousPassHeight /= 2;
+
+			m_BloomPassRTs[i].Init(m_Device, previousPassWidth, previousPassHeight);
+
+		}
+
+		m_BlurRT.Init(m_Device, m_Width, m_Height);
+
+		// Setup depth maps for shadow mapping.
 		m_ShadowDepthMap.Init(m_Device, DirectionalLight::SHADOW_MAP_DIMENSION, DirectionalLight::SHADOW_MAP_DIMENSION, DSType::ShadowDepth);
 	}
 
@@ -376,16 +437,118 @@ namespace rad
 
 	void Engine::BloomPass()
 	{
+		// Blur the offscreen RT before passing to bloom prefilter
+		GetShaderModule(L"BlurShader")->Bind(m_DeviceContext);
 
+		m_BlurRT.Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1, m_BlurRT.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+		for (int i = 0; i < BLUR_PASSES; i++)
+		{
+			m_DeviceContext->PSSetShaderResources(0, 1, m_OffscreenRT.m_SRV.GetAddressOf());
+
+			m_ClampSampler.Bind(m_DeviceContext);
+
+			m_DeviceContext->DrawIndexed(6, 0, 0);
+		}
+
+		// Render to prefilter
+		ImGui::Begin("Bloom Control");
+		ImGui::SliderFloat("Threshold", &m_BloomPreFilterRT.m_RTConstantBuffer.m_Data.value, 0.0f, 5.0f);
+		ImGui::End();
+
+		GetShaderModule(L"BloomPrefilterShader")->Bind(m_DeviceContext);
+
+		m_BloomPreFilterRT.Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1, m_BloomPreFilterRT.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+		m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+		m_ClampSampler.Bind(m_DeviceContext);
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
+
+		// Downsample passes
+		GetShaderModule(L"BloomPassShader")->Bind(m_DeviceContext);
+
+		// First downsample pass needs PS shader resource to be the prefilter pass, so it is done outside the loop.
+		m_BloomPassRTs[0].Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1, m_BloomPassRTs[0].m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+		ID3D11ShaderResourceView* srvs[2] =
+		{
+			m_BloomPreFilterRT.m_SRV.Get(),
+			nullptr
+		};
+
+		m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+		m_ClampSampler.Bind(m_DeviceContext);
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
+
+		// Downsamping passes
+		for (int i = 1; i < BLOOM_PASSES; i++)
+		{
+			m_BloomPassRTs[i].Bind(m_DeviceContext);
+
+			m_DeviceContext->OMSetRenderTargets(1, m_BloomPassRTs[i].m_RTV.GetAddressOf(), nullptr);
+			m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+				
+			ID3D11ShaderResourceView* srvs[2] =
+			{
+				m_BloomPassRTs[i - 1].m_SRV.Get(),
+				nullptr
+
+			};
+
+			m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+			m_ClampSampler.Bind(m_DeviceContext);
+
+			m_DeviceContext->DrawIndexed(6, 0, 0);
+			
+			// Blur texture after downsampling.
+			BlurTexture(m_BloomPassRTs[i]);
+		}
+
+		// Upsampling passes
+		for (int i = BLOOM_PASSES - 1; i >= 0; i--)
+		{
+			m_BloomPassRTs[i - 1].Bind(m_DeviceContext);
+
+			m_DeviceContext->OMSetRenderTargets(1, m_BloomPassRTs[i - 1].m_RTV.GetAddressOf(), nullptr);
+			m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+			// Blur both textures before using as SRV.
+			//BlurTexture(m_BloomPassRTs[i - 1]);
+			//BlurTexture(m_BloomPassRTs[i]);
+
+			ID3D11ShaderResourceView* srvs[2] =
+			{
+				m_BloomPassRTs[i - 1].m_SRV.Get(),
+				m_BloomPassRTs[i].m_SRV.Get()
+
+			};
+
+			m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+			m_ClampSampler.Bind(m_DeviceContext);
+
+			m_DeviceContext->DrawIndexed(6, 0, 0);
+			// Blur texture after upsampling.
+			BlurTexture(m_BloomPassRTs[i - 1]);
+		}
 	}
 
 	void Engine::RenderPass()
 	{
 		// Not sure if I should make UpdateRenderpass function for updating variables such as the exposure, just leaving it in here for now.
-		m_RenderTargetInputLayout.Bind(m_DeviceContext);
-
+	
 		ImGui::Begin("Render Target Control");
-		ImGui::SliderFloat("Exposure", &m_OffscreenRT.m_RTConstantBuffer.m_Data.exposure, 0.5f, 5.0f);
+		ImGui::SliderFloat("Exposure", &m_OffscreenRT.m_RTConstantBuffer.m_Data.value, 0.5f, 5.0f);
 		ImGui::End();
 		
 		GetShaderModule(L"RenderTargetShader")->Bind(m_DeviceContext);
@@ -395,7 +558,54 @@ namespace rad
 		m_DeviceContext->OMSetRenderTargets(1,m_RenderTargetView.GetAddressOf(), nullptr);
 		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
 		
-		m_DeviceContext->PSSetShaderResources(0, 1, m_OffscreenRT.m_SRV.GetAddressOf());
+		// Pass the offscreen RT and bloom RT. In future this will be done in another render pass (Post Process pass).
+		ID3D11ShaderResourceView* srvs[] =
+		{
+			 m_OffscreenRT.m_SRV.Get(),
+			 m_BloomPassRTs[0].m_SRV.Get()
+		};
+
+		m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+		m_ClampSampler.Bind(m_DeviceContext);
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
+	}
+
+	void Engine::BlurTexture(RenderTarget& rt)
+	{
+		// Blur the offscreen RT before passing to bloom prefilter
+		GetShaderModule(L"BlurShader")->Bind(m_DeviceContext);
+
+		m_BlurRT.Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1, m_BlurRT.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+		for (int i = 0; i < BLUR_PASSES; i++)
+		{
+			m_DeviceContext->PSSetShaderResources(0, 1, rt.m_SRV.GetAddressOf());
+
+			m_ClampSampler.Bind(m_DeviceContext);
+
+			m_DeviceContext->DrawIndexed(6, 0, 0);
+		}
+
+		// Not sure if a good idea or not, but doing it regardless.
+		GetShaderModule(L"BloomPassShader")->Bind(m_DeviceContext);
+
+		// First downsample pass needs PS shader resource to be the prefilter pass, so it is done outside the loop.
+		rt.Bind(m_DeviceContext);
+
+		m_DeviceContext->OMSetRenderTargets(1, rt.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMGetDepthStencilState(nullptr, 0u);
+
+		ID3D11ShaderResourceView* srvs[2] =
+		{
+			m_BlurRT.m_SRV.Get(),
+			nullptr
+		};
+
+		m_DeviceContext->PSSetShaderResources(0, 2, srvs);
 		m_ClampSampler.Bind(m_DeviceContext);
 
 		m_DeviceContext->DrawIndexed(6, 0, 0);
@@ -412,6 +622,9 @@ namespace rad
 		ImGui::End();
 
 		m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), clearColor);
+		
+		m_DeviceContext->ClearRenderTargetView(m_OffscreenRT.m_RTV.Get(), clearColor);
+
 		m_DepthStencil.Clear(m_DeviceContext);
 	}
 

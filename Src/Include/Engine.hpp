@@ -56,6 +56,7 @@ namespace rad
 		void BloomPass();
 		void RenderPass();
 
+		void BlurTexture(RenderTarget& rt);
 		void Clear();
 		void Present();
 
@@ -63,6 +64,8 @@ namespace rad
 
 	private:
 		static constexpr uint32_t NUMBER_OF_FRAMES = 3;
+		static constexpr uint32_t BLOOM_PASSES = 7;
+		static constexpr uint32_t BLUR_PASSES = 1;
 
 		// Viewport and window variables.
 		uint32_t m_Width;
@@ -97,12 +100,14 @@ namespace rad
 		std::unordered_map<std::wstring, Model> m_GameObjects;
 		
 		RenderTarget m_OffscreenRT;
+		RenderTarget m_BloomPreFilterRT;
+
+		RenderTarget m_BlurRT;
+
+		RenderTarget m_BloomPassRTs[BLOOM_PASSES];
 
 		TextureSampler m_WrapSampler;
 		TextureSampler m_ClampSampler;
-
-		InputLayout m_InputLayout;
-		InputLayout m_RenderTargetInputLayout;
 
 		Camera m_Camera;
 

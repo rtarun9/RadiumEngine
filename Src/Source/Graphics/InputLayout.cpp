@@ -18,10 +18,10 @@ namespace rad
 		m_InputElementDescs.push_back(inputElementDesc);
 	}
 
-	void InputLayout::Init(const wrl::ComPtr<ID3D11Device>& device, ShaderModule& shaderModule)
+	void InputLayout::Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3DBlob>& vertexBlob)
 	{
 		ThrowIfFailed(device->CreateInputLayout(m_InputElementDescs.data(), m_InputElementDescs.size(),
-			shaderModule.vertexShader.GetBytecodeBlob()->GetBufferPointer(), shaderModule.vertexShader.GetBytecodeBlob()->GetBufferSize(), &m_InputLayout));
+			vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), &m_InputLayout));
 	}
 
 	void InputLayout::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
