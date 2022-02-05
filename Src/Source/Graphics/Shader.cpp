@@ -64,6 +64,7 @@ namespace rad
 
 	void ShaderModule::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
 	{
+		inputLayout.Bind(deviceContext);
 		vertexShader.Bind(deviceContext);
 		pixelShader.Bind(deviceContext);
 	}

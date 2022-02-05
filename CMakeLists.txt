@@ -35,6 +35,7 @@ target_precompile_headers(${PROJECT_NAME}
     <memory>
     <string>
     <vector>
+    <array>
     <unordered_map>
     <cassert>
     <exception>

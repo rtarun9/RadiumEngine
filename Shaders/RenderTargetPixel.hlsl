@@ -11,6 +11,8 @@ cbuffer RTVBuffer : register(b0)
 }
 
 Texture2D renderTexture : register(t0);
+Texture2D bloomTexture : register(t1);
+
 SamplerState textureSampler : register(s0);
 
 float4 PsMain(PSInput input) : SV_Target
@@ -18,7 +20,7 @@ float4 PsMain(PSInput input) : SV_Target
     const float GAMMA = 2.2f;
     const float3 GAMMA_CORRECTION = float3(1.0f / GAMMA, 1.0f / GAMMA, 1.0f / GAMMA);
     
-    float3 hdrColor = renderTexture.Sample(textureSampler, input.texCoord).xyz;
+    float3 hdrColor = renderTexture.Sample(textureSampler, input.texCoord).xyz + bloomTexture.Sample(textureSampler, input.texCoord).xyz;;
 
     float3 mappedColor = float3(1.0f, 1.0f, 1.0f) - exp(-hdrColor * exposure);
     mappedColor = pow(mappedColor, GAMMA_CORRECTION);
