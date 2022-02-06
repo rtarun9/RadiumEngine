@@ -22,9 +22,9 @@ namespace rad
 	class VertexShader : public Shader
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile = L"vs_5_0");
+		void Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint = L"VsMain", const std::wstring& shaderProfile = L"vs_5_0");
 
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Bind(ID3D11DeviceContext* deviceContext);
 
 	public:
 		wrl::ComPtr<ID3D11VertexShader> m_VertexShader;
@@ -33,9 +33,9 @@ namespace rad
 	class PixelShader : public Shader
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile = L"ps_5_0");
+		void Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint = L"PsMain", const std::wstring& shaderProfile = L"ps_5_0");
 
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Bind(ID3D11DeviceContext* deviceContext);
 
 	public:
 		wrl::ComPtr<ID3D11PixelShader> m_PixelShader;
@@ -48,7 +48,8 @@ namespace rad
 
 		InputLayout inputLayout{};
 
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Init(ID3D11Device* device, InputLayoutType inputLayoutType, const std::wstring& vsFilePath, const std::wstring& psFilePath);
+		void Bind(ID3D11DeviceContext* deviceContext);
 	};
 }
 

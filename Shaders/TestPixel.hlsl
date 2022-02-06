@@ -67,7 +67,7 @@ float CalculateShadow(PSInput input)
 
 float4 CalculateAmbientLight(PSInput input)
 {
-    float3 ambient = ambientStrength * lightColor;
+    float3 ambient = ambientStrength * lightColor * input.color;
     return float4(ambient, 1.0f);
 }
 

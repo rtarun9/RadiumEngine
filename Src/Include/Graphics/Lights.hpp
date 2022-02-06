@@ -27,13 +27,13 @@ namespace rad
 	class DirectionalLight
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device);
-		void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Init(ID3D11Device *device);
+		void Update(ID3D11DeviceContext* deviceContext);
+
+		void UpdateData();
 
 	public:
 		static constexpr float SHADOW_MAP_DIMENSION = 2048;
-		
-		LightData m_LightData{};
 		ConstantBuffer<LightData> m_LightConstantBuffer;
 		ConstantBuffer<LightPerFrameData> m_PerFrameConstantBuffer;
 

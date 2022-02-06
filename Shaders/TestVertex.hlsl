@@ -11,6 +11,7 @@ cbuffer PerObject : register(b1)
 {
     matrix modelMatrix;
     matrix inverseTransposedModelMatrix;
+    float4 color;
 }
 
 struct VSInput
@@ -48,7 +49,7 @@ PSInput VsMain(VSInput input)
     psInput.texCoord = input.texCoord;
     psInput.normal = mul((float3x3) (inverseTransposedModelMatrix), input.normal);
     psInput.lightTransformedPosition = mul(lightSpaceTransform, float4(input.position, 1.0f));
-
+    psInput.color = color;
     // This is happens as a directional (sun) light is used, so the method of converting all vectors involved in lighting from world -> normal coordinates (by multiplying
     // with TBN inverse) cannot happen.
     psInput.TBN = TBN;

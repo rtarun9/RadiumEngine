@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	void Mesh::Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures)
+	void Mesh::Init(ID3D11Device* device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures)
 	{
 		m_Vertices = vertices;
 		m_Indices = indices;
@@ -12,7 +12,7 @@ namespace rad
 		m_IndexBuffer.Init(device, m_Indices);
 	}
 
-	void Mesh::Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void Mesh::Draw(ID3D11DeviceContext* deviceContext)
 	{
 		m_VertexBuffer.Bind(deviceContext);
 		m_IndexBuffer.Bind(deviceContext);

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 #include "Camera.hpp"
@@ -60,11 +62,13 @@ namespace rad
 		void Clear();
 		void Present();
 
-		ShaderModule* GetShaderModule(const std::wstring& name);
+		void LogErrors();
 
 	private:
 		static constexpr uint32_t NUMBER_OF_FRAMES = 3;
 		static constexpr uint32_t BLOOM_PASSES = 7;
+
+		// To be != 1 only when Guassian blur is implemented.
 		static constexpr uint32_t BLUR_PASSES = 1;
 
 		// Viewport and window variables.
@@ -83,6 +87,7 @@ namespace rad
 		wrl::ComPtr<IDXGISwapChain> m_SwapChain;
 
 		wrl::ComPtr<ID3D11Debug> m_Debug;
+		wrl::ComPtr<ID3D11InfoQueue> m_InfoQueue;
 
 		DepthStencil m_DepthStencil;
 		DepthStencil m_ShadowDepthMap;
@@ -96,9 +101,18 @@ namespace rad
 		D3D11_VIEWPORT m_Viewport = {};
 
 		// Application specific variables.
-		std::unordered_map<std::wstring, ShaderModule> m_Shaders;
+		ShaderModule m_DefaultShaderModule{};
+		ShaderModule m_ShadowShaderModule{};
+		ShaderModule m_RenderTargetShaderModule{};
+		ShaderModule m_BloomPreFilterShaderModule{};
+		ShaderModule m_BloomPassShaderModule{};
+		ShaderModule m_BlurShaderModule{};
+		ShaderModule m_PostProcessShaderModule{};
+
 		std::unordered_map<std::wstring, Model> m_GameObjects;
 		
+		RenderTarget m_PostProcessRT;
+
 		RenderTarget m_OffscreenRT;
 		RenderTarget m_BloomPreFilterRT;
 
@@ -112,6 +126,7 @@ namespace rad
 		Camera m_Camera;
 
 		UIManager m_UIManager;
+		Log m_Log;
 
 		DirectionalLight m_DirectionalLight;
 	

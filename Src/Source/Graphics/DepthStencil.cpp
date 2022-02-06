@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	void DepthStencil::Init(const wrl::ComPtr<ID3D11Device>& device, uint32_t width, uint32_t height, DSType type)
+	void DepthStencil::Init(ID3D11Device* device, uint32_t width, uint32_t height, DSType type)
 	{
 		// All DXGI Format's are hard coded, which should be fine for a long time unless someother formats are required.
 		D3D11_TEXTURE2D_DESC depthStencilBufferDesc = {};
@@ -50,7 +50,7 @@ namespace rad
 		m_DepthStencilType = type;
 	}
 
-	void DepthStencil::Clear(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, float depthValue, float stencilValue)
+	void DepthStencil::Clear(ID3D11DeviceContext* deviceContext, float depthValue, float stencilValue)
 	{
 		if (m_DepthStencilType == DSType::DepthStencil)
 		{
@@ -62,7 +62,7 @@ namespace rad
 		}
 	}
 
-	wrl::ComPtr<ID3D11ShaderResourceView> DepthStencil::ConvertToSRV(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	wrl::ComPtr<ID3D11ShaderResourceView> DepthStencil::ConvertToSRV(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
 		shaderResourceViewDesc.Format = DXGI_FORMAT_R32_FLOAT;

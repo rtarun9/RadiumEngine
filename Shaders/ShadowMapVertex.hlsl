@@ -8,6 +8,7 @@ cbuffer PerObject : register(b1)
 {
     matrix modelMatrix;
     matrix inverseTransposedModelMatrix;
+    float4 color;
 }
 
 struct VSInput

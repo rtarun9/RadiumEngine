@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	void IndexBuffer::Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<uint32_t>& indices)
+	void IndexBuffer::Init(ID3D11Device* device, const std::vector<uint32_t>& indices)
 	{
 		D3D11_BUFFER_DESC indexBufferDesc = {};
 		indexBufferDesc.ByteWidth = std::size(indices) * sizeof(uint32_t);
@@ -18,7 +18,7 @@ namespace rad
 		m_Size = indices.size();
 	}
 
-	void IndexBuffer::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void IndexBuffer::Bind(ID3D11DeviceContext *deviceContext)
 	{
 		deviceContext->IASetIndexBuffer(m_Buffer.Get(), DXGI_FORMAT_R32_UINT, 0u);
 	}

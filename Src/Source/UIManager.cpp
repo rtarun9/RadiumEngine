@@ -8,7 +8,7 @@
 
 namespace rad
 {
-	void UIManager::Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void UIManager::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 	{
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -22,8 +22,8 @@ namespace rad
 		SetCustomDarkTheme();
 
 		ImGui_ImplWin32_Init(Application::GetWindowHandle());
-		ImGui_ImplDX11_Init(device.Get(), deviceContext.Get());
-		
+		ImGui_ImplDX11_Init(device, deviceContext);
+
 		ImGui::GetIO().IniFilename = "../imgui.ini";
 	}
 
@@ -123,9 +123,13 @@ namespace rad
 
 	void UIManager::ShowMetrics()
 	{
-		ImGui::Begin("Metrics");
 		ImGui::ShowMetricsWindow();
-		ImGui::End();
 	}
 
+	void UIManager::DisplayRenderTarget(const std::wstring& rtName, ID3D11ShaderResourceView* srv)
+	{
+		ImGui::Begin(WStringToString(rtName).c_str());
+		ImGui::Image((void*)srv, ImVec2(UIManager::IMAGE_DIMENSIONS, UIManager::IMAGE_DIMENSIONS));
+		ImGui::End();
+	}
 }

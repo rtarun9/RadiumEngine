@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Pch.hpp"
 
 namespace rad

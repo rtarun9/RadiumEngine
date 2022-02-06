@@ -19,8 +19,14 @@
 
 #include <wrl/client.h>
 
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
+
 // Namespace aliases and global headers.
 #include "Helpers.hpp"
+#include "Log.hpp"
 
 namespace wrl = Microsoft::WRL;
 namespace dx = DirectX;

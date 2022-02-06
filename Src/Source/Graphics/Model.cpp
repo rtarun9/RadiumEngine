@@ -4,9 +4,11 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <imgui.h>
+
 namespace rad
 {
-	void Model::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& path)
+	void Model::Init(ID3D11Device* device, const std::wstring& path)
 	{
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(WStringToString(path), aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
@@ -20,14 +22,17 @@ namespace rad
 		m_Transform.scale = dx::XMFLOAT3(1.0f, 1.0f, 1.0f);
 		m_Transform.translation = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
+		m_PerObjectConstantBuffer.m_Data.color = dx::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		m_PerObjectConstantBuffer.Init(device);
 
 		m_ModelDirectory = path.substr(0, path.find_last_of(L'/') + 1);
 
 		ProcessNode(device, scene->mRootNode, scene);
+
+		RAD_CORE_INFO("Loaded model with path : {0}", WStringToString(path));
 	}
 
-	void Model::Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void Model::Draw(ID3D11DeviceContext* deviceContext)
 	{
 		for (size_t i = 0; i < m_Meshes.size(); i++)
 		{
@@ -35,7 +40,7 @@ namespace rad
 		}
 	}
 
-	void Model::ProcessNode(const wrl::ComPtr<ID3D11Device>& device, aiNode* node, const aiScene* scene)
+	void Model::ProcessNode(ID3D11Device* device, aiNode* node, const aiScene* scene)
 	{
 		// Process all meshes of node.
 		for (uint32_t i = 0; i < node->mNumMeshes; i++)
@@ -51,7 +56,7 @@ namespace rad
 		}
 	}
 
-	void Model::ProcessMesh(const wrl::ComPtr<ID3D11Device>& device, aiMesh* mesh, const aiScene* scene)
+	void Model::ProcessMesh(ID3D11Device* device, aiMesh* mesh, const aiScene* scene)
 	{
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
@@ -118,6 +123,7 @@ namespace rad
 			if (!diffuseMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device));
+				//RAD_CORE_WARN("Model with path : {0} does not have Diffuse Maps", WStringToString(m_ModelDirectory));
 			}
 			else
 			{
@@ -128,6 +134,7 @@ namespace rad
 			if (!specularMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device));
+				//RAD_CORE_WARN("Model with path : {0} does not have Specular Maps", WStringToString(m_ModelDirectory));
 			}
 			else
 			{
@@ -138,6 +145,7 @@ namespace rad
 			if (!normalMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device));
+				//RAD_CORE_WARN("Model with path : {0} does not have Normal Maps", WStringToString(m_ModelDirectory));
 			}
 			else
 			{
@@ -148,6 +156,7 @@ namespace rad
 			if (!heightMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device));
+				//RAD_CORE_WARN("Model with path : {0} does not have Height Maps", WStringToString(m_ModelDirectory));
 			}
 			else
 			{
@@ -168,7 +177,7 @@ namespace rad
 		m_Meshes.push_back(newMesh);
 	}
 
-	std::vector<Texture> Model::LoadMaterialTextures(const wrl::ComPtr<ID3D11Device>& device, aiMaterial* material, aiTextureType textureType, TextureTypes type)
+	std::vector<Texture> Model::LoadMaterialTextures(ID3D11Device* device, aiMaterial* material, aiTextureType textureType, TextureTypes type)
 	{
 		std::vector<Texture> textures;
 
@@ -212,7 +221,7 @@ namespace rad
 		return textures;
 	}
 
-	void Model::UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void Model::UpdateTransformComponent(ID3D11DeviceContext* deviceContext)
 	{
 		// NOTE : Rotation does not work as expected when rotation is done after translation.
 		dx::XMVECTOR rotationVector = dx::XMVectorSet(m_Transform.rotation.x, m_Transform.rotation.y, m_Transform.rotation.z, 0.0f);
@@ -220,16 +229,26 @@ namespace rad
 			dx::XMMatrixRotationRollPitchYawFromVector(rotationVector) *
 			dx::XMMatrixScaling(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
 
-		m_PerObjectData.modelMatrix = transform;
-		m_PerObjectData.inverseTransposedModelMatrix = dx::XMMatrixInverse(nullptr, dx::XMMatrixTranspose(transform));
+		m_PerObjectConstantBuffer.m_Data.modelMatrix = transform;
+		m_PerObjectConstantBuffer.m_Data.inverseTransposedModelMatrix = dx::XMMatrixInverse(nullptr, dx::XMMatrixTranspose(transform));
 
-		m_PerObjectConstantBuffer.Update(deviceContext, m_PerObjectData);
+		m_PerObjectConstantBuffer.Update(deviceContext);
 	}
 
-	Model Model::CubeModel(const wrl::ComPtr<ID3D11Device>& device)
+	void Model::UpdateData()
+	{
+		// NOTE : scaling on Y not working as expected.
+		ImGui::SliderFloat3("Translate", &m_Transform.translation.x, -10.0f, 10.0f);
+		ImGui::SliderFloat3("Rotate", &m_Transform.rotation.x, -180.0f, 180.0f);
+		ImGui::SliderFloat3("Scale", &m_Transform.scale.x, 0.1f, 50.0f);
+		ImGui::SliderFloat3("Color", &m_PerObjectConstantBuffer.m_Data.color.x, 0.0f, 5.0f);
+		ImGui::TreePop();
+	}
+
+	Model Model::CubeModel(ID3D11Device* device)
 	{
 		Model cube;
-		cube.Init(device, L"../Assets/Models/Cube/cube.obj");
+		cube.Init(device, L"../Assets/Models/Cube/glTF/Cube.gltf");
 
 		return cube;
 	}

@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	void RenderTarget::Init(const wrl::ComPtr<ID3D11Device>& device, int width, int height)
+	void RenderTarget::Init(ID3D11Device* device, int width, int height)
 	{
 		D3D11_TEXTURE2D_DESC textureDesc = {};
 		textureDesc.Width = width;
@@ -63,18 +63,26 @@ namespace rad
 		m_RTConstantBuffer.m_Data.padding = dx::XMFLOAT3(0.0f, 0.0f, 0.0f);
 	}
 
-	void RenderTarget::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void RenderTarget::Bind(ID3D11DeviceContext* deviceContext)
 	{
 		deviceContext->RSSetViewports(1, &m_Viewport);
 
 		m_Vertices.Bind(deviceContext);
 		m_IndexBuffer.Bind(deviceContext);
 
+		deviceContext->OMSetRenderTargets(1, m_RTV.GetAddressOf(), nullptr); 
+		deviceContext->OMGetDepthStencilState(nullptr, 0u);
+
 		m_RTConstantBuffer.BindPS(deviceContext);
 	}
 
-	void RenderTarget::Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void RenderTarget::Update(ID3D11DeviceContext* deviceContext)
 	{
 		m_RTConstantBuffer.Update(deviceContext);
+	}
+
+	void RenderTarget::Draw(ID3D11DeviceContext* deviceContext)
+	{
+		deviceContext->DrawIndexed(6, 0, 0);
 	}
 }

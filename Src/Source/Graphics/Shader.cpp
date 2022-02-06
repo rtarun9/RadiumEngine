@@ -38,31 +38,52 @@ namespace rad
 	}
 
 
-	void VertexShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
+	void VertexShader::Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
 		ThrowIfFailed(device->CreateVertexShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_VertexShader));
 	}
 
-	void VertexShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void VertexShader::Bind(ID3D11DeviceContext* deviceContext)
 	{
 		deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
 	}
 
-	void PixelShader::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
+	void PixelShader::Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
 		ThrowIfFailed(device->CreatePixelShader(m_ShaderBlob->GetBufferPointer(), m_ShaderBlob->GetBufferSize(), nullptr, &m_PixelShader));
 	}
 
-	void PixelShader::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void PixelShader::Bind(ID3D11DeviceContext* deviceContext)
 	{
 		deviceContext->PSSetShader(m_PixelShader.Get(), nullptr, 0u);
 	}
 
-	void ShaderModule::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext)
+	void ShaderModule::Init(ID3D11Device* device, InputLayoutType inputLayoutType, const std::wstring& vsFilePath, const std::wstring& psFilePath)
+	{
+		if (inputLayoutType == InputLayoutType::DefaultInput)
+		{
+			inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+			inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+			inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+			inputLayout.AddInputElement("TANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+			inputLayout.AddInputElement("BITANGENT", DXGI_FORMAT_R32G32B32_FLOAT);
+		}
+		else if (inputLayoutType == InputLayoutType::RenderTargetInput)
+		{
+			inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32_FLOAT);
+			inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+		}
+		
+		vertexShader.Init(device, vsFilePath);
+		pixelShader.Init(device, psFilePath);
+		inputLayout.Init(device, vertexShader.GetBytecodeBlob().Get());
+	}
+
+	void ShaderModule::Bind(ID3D11DeviceContext* deviceContext)
 	{
 		inputLayout.Bind(deviceContext);
 		vertexShader.Bind(deviceContext);

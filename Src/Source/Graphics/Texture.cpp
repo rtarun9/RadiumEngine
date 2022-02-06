@@ -5,12 +5,14 @@
 
 namespace rad
 {
-	void Texture::Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& filePath, bool srgbTexture)
+	void Texture::Init(ID3D11Device* device, const std::wstring& filePath, bool srgbTexture)
 	{
 		unsigned char* texture = stbi_load(WStringToString(filePath).c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
 		if (!texture)
 		{
-			ErrorMessage(L"Failed to load texture at path : " + filePath);
+			RAD_CORE_WARN("Failed to load texture with path : {0}. Using default texture instead", WStringToString(filePath));
+			*this = DefaultTexture(device);
+			return;
 		}
 
 		ASSERT(!(m_TexWidth < 0 || m_TexHeight < 0), L"Texture has invalid dimensions (width or height < 0)");
@@ -53,9 +55,11 @@ namespace rad
 		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView));
 
 		stbi_image_free(texture);
+
+		//RAD_CORE_INFO("Loaded texture with path : {0}", WStringToString(filePath));
 	}
 
-	Texture Texture::DefaultTexture(const wrl::ComPtr<ID3D11Device>& device)
+	Texture Texture::DefaultTexture(ID3D11Device* device)
 	{
 		Texture defaultTexture;
 		defaultTexture.Init(device, L"../Assets/Textures/MissingTexture.png");
@@ -63,7 +67,7 @@ namespace rad
 		return defaultTexture;
 	}
 
-	void Texture::Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, int slot)
+	void Texture::Bind(ID3D11DeviceContext* deviceContext, int slot)
 	{
 		deviceContext->PSSetShaderResources(slot, 1, m_TextureView.GetAddressOf());
 	}

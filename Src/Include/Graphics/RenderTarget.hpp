@@ -28,11 +28,13 @@ namespace rad
 	class RenderTarget
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, int width, int height);
+		void Init(ID3D11Device* device, int width, int height);
 
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Bind(ID3D11DeviceContext* deviceContext);
 		
-		void Update(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Update(ID3D11DeviceContext* deviceContext);
+
+		void Draw(ID3D11DeviceContext* deviceContext);
 
 	public:
 		VertexBuffer<RTVertex> m_Vertices;

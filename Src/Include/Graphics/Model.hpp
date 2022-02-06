@@ -15,22 +15,32 @@ namespace rad
 		Texture texture;
 	};
 
+
+	struct PerObjectData
+	{
+		dx::XMMATRIX modelMatrix;
+		dx::XMMATRIX inverseTransposedModelMatrix;
+		dx::XMFLOAT4 color;
+	};
+
 	class Model
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& path);
-		void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Init(ID3D11Device* device, const std::wstring& path);
+		void Draw(ID3D11DeviceContext* deviceContext);
 	
-		static Model CubeModel(const wrl::ComPtr<ID3D11Device>& device);
+		static Model CubeModel(ID3D11Device* device);
 
 	public:
-		void ProcessNode(const wrl::ComPtr<ID3D11Device>& device, aiNode* node, const aiScene* scene);
+		void ProcessNode(ID3D11Device* device, aiNode* node, const aiScene* scene);
 
 		// Translate aiMesh into custom Mesh class
-		void ProcessMesh(const wrl::ComPtr<ID3D11Device>& device, aiMesh* mesh, const aiScene* scene);
-		std::vector<Texture> LoadMaterialTextures(const wrl::ComPtr<ID3D11Device>& device, aiMaterial* material, aiTextureType textureType, TextureTypes type);
+		void ProcessMesh(ID3D11Device* device, aiMesh* mesh, const aiScene* scene);
+		std::vector<Texture> LoadMaterialTextures(ID3D11Device* device, aiMaterial* material, aiTextureType textureType, TextureTypes type);
 
-		void UpdateTransformComponent(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void UpdateTransformComponent(ID3D11DeviceContext* deviceContext);
+
+		void UpdateData();
 
 	public:
 		std::wstring m_ModelDirectory;
@@ -38,8 +48,8 @@ namespace rad
 		std::vector<LoadedTexture> m_LoadedTextures;
 
 		std::vector<Mesh> m_Meshes;
+
 		Transform m_Transform{};
-		PerObjectData m_PerObjectData{};
 		ConstantBuffer<PerObjectData> m_PerObjectConstantBuffer{};
 	};
 }

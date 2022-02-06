@@ -34,18 +34,12 @@ namespace rad
 		dx::XMFLOAT3 rotation;
 	};
 
-	struct PerObjectData
-	{
-		dx::XMMATRIX modelMatrix;
-		dx::XMMATRIX inverseTransposedModelMatrix;
-	};
-
 	class Mesh
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures);
+		void Init(ID3D11Device* device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures);
 
-		void Draw(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Draw(ID3D11DeviceContext* deviceContext);
 
 	private:
 		std::vector<Vertex> m_Vertices;

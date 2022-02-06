@@ -4,6 +4,12 @@
 
 namespace rad
 {
+	enum class InputLayoutType
+	{
+		DefaultInput,
+		RenderTargetInput
+	};
+
 	class InputLayout
 	{
 	public:
@@ -11,9 +17,9 @@ namespace rad
 		// Once solution is found, it too will use std::wstring again.
 		void AddInputElement(const char *semanticName, DXGI_FORMAT format);
 
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3DBlob>& vertexBlob);
+		void Init(ID3D11Device* device, ID3DBlob* vertexBlob);
 
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Bind(ID3D11DeviceContext* deviceContext);
 
 	public:
 		wrl::ComPtr<ID3D11InputLayout> m_InputLayout;

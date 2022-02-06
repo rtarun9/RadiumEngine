@@ -1,5 +1,8 @@
+#pragma once
+
 #include "Pch.hpp"
 
+#include "Graphics/RenderTarget.hpp"
 #include "imgui.h"
 
 namespace rad
@@ -7,7 +10,7 @@ namespace rad
 	class UIManager
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const wrl::ComPtr<ID3D11DeviceContext>& deviceContext);
+		void Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext);
 
 		void FrameBegin();
 
@@ -19,6 +22,9 @@ namespace rad
 		void SetCustomDarkTheme();
 
 		void ShowMetrics();
+
+		void DisplayRenderTarget(const std::wstring& rtName, ID3D11ShaderResourceView* srv);
+
 
 	public:
 		static constexpr int IMAGE_DIMENSIONS = 500;

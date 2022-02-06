@@ -7,11 +7,11 @@ namespace rad
 	class Texture
 	{
 	public:
-		void Init(const wrl::ComPtr<ID3D11Device>& device, const std::wstring& filePath, bool srgbTexture = true);
-		void Bind(const wrl::ComPtr<ID3D11DeviceContext>& deviceContext, int slot = 0);
+		void Init(ID3D11Device* device, const std::wstring& filePath, bool srgbTexture = true);
+		void Bind(ID3D11DeviceContext* deviceContext, int slot = 0);
 
 		// If a particular texture is not present, loads a default one
-		static Texture DefaultTexture(const wrl::ComPtr<ID3D11Device>& device);
+		static Texture DefaultTexture(ID3D11Device* device);
 
 	public:
 		int m_TexWidth{ 0 };
