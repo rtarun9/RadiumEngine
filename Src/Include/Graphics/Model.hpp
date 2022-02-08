@@ -26,17 +26,17 @@ namespace rad
 	class Model
 	{
 	public:
-		void Init(ID3D11Device* device, const std::wstring& path);
+		void Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, const std::wstring& path);
 		void Draw(ID3D11DeviceContext* deviceContext);
 	
-		static Model CubeModel(ID3D11Device* device);
+		static Model CubeModel(ID3D11Device* device, ID3D11DeviceContext* deviceContext);
 
 	public:
-		void ProcessNode(ID3D11Device* device, aiNode* node, const aiScene* scene);
+		void ProcessNode(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiNode* node, const aiScene* scene);
 
 		// Translate aiMesh into custom Mesh class
-		void ProcessMesh(ID3D11Device* device, aiMesh* mesh, const aiScene* scene);
-		std::vector<Texture> LoadMaterialTextures(ID3D11Device* device, aiMaterial* material, aiTextureType textureType, TextureTypes type);
+		void ProcessMesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiMesh* mesh, const aiScene* scene);
+		std::vector<Texture> LoadMaterialTextures(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiMaterial* material, aiTextureType textureType, TextureTypes type);
 
 		void UpdateTransformComponent(ID3D11DeviceContext* deviceContext);
 

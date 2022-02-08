@@ -25,6 +25,7 @@ float4 PsMain(PSInput input) : SV_Target
     };
 
     float3 color = float3(0.0f, 0.0f, 0.0f);
+
     for (int i = 0; i < 9; i++)
     {
         color += blurTexture.Sample(textureSampler, input.texCoord) * blurKernel[i];

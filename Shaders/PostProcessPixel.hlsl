@@ -17,10 +17,26 @@ SamplerState textureSampler : register(s0);
 
 float4 PsMain(PSInput input) : SV_Target
 {
+
+    // Change this to modify the blur effect
+    const float blurKernel[9] =
+    {
+        1.0 / 16, 2.0 / 16, 1.0 / 16,
+        2.0 / 16, 4.0 / 16, 2.0 / 16,
+        1.0 / 16, 2.0 / 16, 1.0 / 16
+    };
+
+    float3 bloomPixelColor = float3(0.0f, 0.0f, 0.0f);
+
+    for (int i = 0; i < 9; i++)
+    {
+        bloomPixelColor += bloomTexture.Sample(textureSampler, input.texCoord) * blurKernel[i];
+
+    }
     const float GAMMA = 2.2f;
     const float3 GAMMA_CORRECTION = float3(1.0f / GAMMA, 1.0f / GAMMA, 1.0f / GAMMA);
     
-    float3 hdrColor = renderTexture.Sample(textureSampler, input.texCoord).xyz + bloomTexture.Sample(textureSampler, input.texCoord).xyz;;
+    float3 hdrColor = renderTexture.Sample(textureSampler, input.texCoord).xyz + bloomPixelColor;
 
     float3 mappedColor = float3(1.0f, 1.0f, 1.0f) - exp(-hdrColor * exposure);
     mappedColor = pow(mappedColor, GAMMA_CORRECTION);

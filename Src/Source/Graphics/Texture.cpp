@@ -5,13 +5,13 @@
 
 namespace rad
 {
-	void Texture::Init(ID3D11Device* device, const std::wstring& filePath, bool srgbTexture)
+	void Texture::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, const std::wstring& filePath, bool srgbTexture)
 	{
 		unsigned char* texture = stbi_load(WStringToString(filePath).c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
 		if (!texture)
 		{
 			RAD_CORE_WARN("Failed to load texture with path : {0}. Using default texture instead", WStringToString(filePath));
-			*this = DefaultTexture(device);
+			*this = DefaultTexture(device, deviceContext);
 			return;
 		}
 
@@ -36,7 +36,8 @@ namespace rad
 
 		textureDesc.SampleDesc.Count = 1;
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
-		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 		D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
 		textureSubresourceData.pSysMem = texture;
@@ -54,15 +55,17 @@ namespace rad
 
 		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView));
 
+		deviceContext->GenerateMips(m_TextureView.Get());
+
 		stbi_image_free(texture);
 
 		//RAD_CORE_INFO("Loaded texture with path : {0}", WStringToString(filePath));
 	}
 
-	Texture Texture::DefaultTexture(ID3D11Device* device)
+	Texture Texture::DefaultTexture(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 	{
 		Texture defaultTexture;
-		defaultTexture.Init(device, L"../Assets/Textures/MissingTexture.png");
+		defaultTexture.Init(device, deviceContext, L"../Assets/Textures/MissingTexture.png");
 
 		return defaultTexture;
 	}

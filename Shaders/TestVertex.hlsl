@@ -31,6 +31,8 @@ struct PSInput
     float3 color : COLOR;
     float4 lightTransformedPosition : LIGHT_SPACE_POSITION;
     float3x3 TBN : TBN_MATRIX;
+    matrix modelMatrix : MODEL_MATRIX;
+    matrix shadowProjectionViewMatrix : SHADOW_MATRIX;
 };
 
 PSInput VsMain(VSInput input)
@@ -53,7 +55,8 @@ PSInput VsMain(VSInput input)
     // This is happens as a directional (sun) light is used, so the method of converting all vectors involved in lighting from world -> normal coordinates (by multiplying
     // with TBN inverse) cannot happen.
     psInput.TBN = TBN;
-
+    psInput.modelMatrix = modelMatrix;
+    psInput.shadowProjectionViewMatrix = lightSpaceTransform;
     //psInput.position = psInput.lightTransformedPosition;
 
     return psInput;

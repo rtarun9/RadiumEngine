@@ -8,6 +8,12 @@ cbuffer LightData : register(b0)
     float3 lightDirection;
 };
 
+cbuffer CameraData : register(b1)
+{
+    float3 cameraPosition;
+    float padding;
+};
+
 Texture2D diffuseTexture : register(t0);
 Texture2D specularTexture : register(t1);
 Texture2D normalTexture : register(t2);
@@ -19,7 +25,7 @@ SamplerState textureSampler : register(s0);
 SamplerState clampTextureSampler : register(s1);
 
 // This values needs to be same as set in Lights.hpp -> SHADOW_MAP_DIMENSION
-const int DEPTH_TEXTURE_DIMENSION = 2048;
+static const int DEPTH_TEXTURE_DIMENSION = 2048;
 
 struct PSInput
 {
@@ -29,7 +35,10 @@ struct PSInput
     float3 color : COLOR;
     float4 lightTransformedPosition : LIGHT_SPACE_POSITION;
     float3x3 TBN : TBN_MATRIX;
+    matrix modelMatrix : MODEL_MATRIX;
+    matrix shadowProjectionViewMatrix : SHADOW_MATRIX;
 };
+
 
 float CalculateShadow(PSInput input)
 {
@@ -50,7 +59,7 @@ float CalculateShadow(PSInput input)
     float bias = 0.005f; // max(0.05f * (1.0f -  dot(input.normal, lightDirection.xyz)), 0.005f);
     float texelSize =0.00008f;
 
-    const int KERNEL_WIDTH = 3;
+    static const int KERNEL_WIDTH = 3;
 
     for (int i = -KERNEL_WIDTH; i <= KERNEL_WIDTH; i++)
     {
@@ -89,17 +98,17 @@ float4 PsMain(PSInput input) : SV_Target
     // Doesnt work as expected, should be fine as long as clear color is black.
     clip(alpha < 0.1f ? -1 : 1);
 
+    float shadowResult = CalculateShadow(input);
+
+
     float3 normal = normalTexture.Sample(clampTextureSampler, input.texCoord).xyz;
     // Convert to -1, 1 range
     normal = normal * 2.0f - float3(1.0f, 1.0f, 1.0f);
     normal = normalize(mul(input.TBN, normal));
 
-    float shadowResult = CalculateShadow(input);
     float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(input.normal), input) * shadowResult * lightStrength);
 
     float4 result = float4(lightColor, 1.0f) * lightCalculationResult * diffTexture;
-
     result.a = alpha;
-
     return result;
 }

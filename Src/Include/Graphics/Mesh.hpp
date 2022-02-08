@@ -41,7 +41,7 @@ namespace rad
 
 		void Draw(ID3D11DeviceContext* deviceContext);
 
-	private:
+	public:
 		std::vector<Vertex> m_Vertices;
 		std::vector<uint32_t> m_Indices;
 		std::vector<Texture> m_Textures;

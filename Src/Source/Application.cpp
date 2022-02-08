@@ -4,14 +4,14 @@
 #include <imgui_impl_win32.h>
 
 #include "Application.hpp"
-#include "Engine.hpp"
+#include "EngineBase.hpp"
 
 // Forward declare message handler from imgui_impl_win32.cpp.
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace rad
 {
-	int Application::Run(std::shared_ptr<Engine> engine, HINSTANCE instance)
+	int Application::Run(std::shared_ptr<EngineBase> engine, HINSTANCE instance)
 	{
 		// Register window class and create window class.
 		WNDCLASSEXW windowClass = {};
@@ -88,7 +88,7 @@ namespace rad
 			return true;
 		}
 
-		Engine* engine = reinterpret_cast<Engine*>(GetWindowLongPtrW(windowHandle, GWLP_USERDATA));
+		EngineBase* engine= reinterpret_cast<EngineBase*>(GetWindowLongPtrW(windowHandle, GWLP_USERDATA));
 
 		switch (message)
 		{

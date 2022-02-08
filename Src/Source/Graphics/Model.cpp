@@ -8,7 +8,7 @@
 
 namespace rad
 {
-	void Model::Init(ID3D11Device* device, const std::wstring& path)
+	void Model::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, const std::wstring& path)
 	{
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(WStringToString(path), aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
@@ -27,7 +27,7 @@ namespace rad
 
 		m_ModelDirectory = path.substr(0, path.find_last_of(L'/') + 1);
 
-		ProcessNode(device, scene->mRootNode, scene);
+		ProcessNode(device, deviceContext, scene->mRootNode, scene);
 
 		RAD_CORE_INFO("Loaded model with path : {0}", WStringToString(path));
 	}
@@ -40,23 +40,23 @@ namespace rad
 		}
 	}
 
-	void Model::ProcessNode(ID3D11Device* device, aiNode* node, const aiScene* scene)
+	void Model::ProcessNode(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiNode* node, const aiScene* scene)
 	{
 		// Process all meshes of node.
 		for (uint32_t i = 0; i < node->mNumMeshes; i++)
 		{
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-			ProcessMesh(device, mesh, scene);
+			ProcessMesh(device, deviceContext, mesh, scene);
 		}
 
 		// Process all children of current node.
 		for (uint32_t i = 0; i < node->mNumChildren; i++)
 		{
-			ProcessNode(device, node->mChildren[i], scene);
+			ProcessNode(device, deviceContext, node->mChildren[i], scene);
 		}
 	}
 
-	void Model::ProcessMesh(ID3D11Device* device, aiMesh* mesh, const aiScene* scene)
+	void Model::ProcessMesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiMesh* mesh, const aiScene* scene)
 	{
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
@@ -119,10 +119,10 @@ namespace rad
 		if (mesh->mMaterialIndex >= 0)
 		{
 			aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-			std::vector<Texture> diffuseMaps = LoadMaterialTextures(device, material, aiTextureType_DIFFUSE, TextureTypes::TextureDiffuse);
+			std::vector<Texture> diffuseMaps = LoadMaterialTextures(device, deviceContext, material, aiTextureType_DIFFUSE, TextureTypes::TextureDiffuse);
 			if (!diffuseMaps.size())
 			{
-				textures.push_back(Texture::DefaultTexture(device));
+				textures.push_back(Texture::DefaultTexture(device, deviceContext));
 				//RAD_CORE_WARN("Model with path : {0} does not have Diffuse Maps", WStringToString(m_ModelDirectory));
 			}
 			else
@@ -130,10 +130,10 @@ namespace rad
 				textures.push_back(diffuseMaps[0]);
 			}
 
-			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
+			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, deviceContext ,material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
 			if (!specularMaps.size())
 			{
-				textures.push_back(Texture::DefaultTexture(device));
+				textures.push_back(Texture::DefaultTexture(device, deviceContext));
 				//RAD_CORE_WARN("Model with path : {0} does not have Specular Maps", WStringToString(m_ModelDirectory));
 			}
 			else
@@ -141,10 +141,10 @@ namespace rad
 				textures.push_back(specularMaps[0]);
 			}
 
-			std::vector<Texture> normalMaps = LoadMaterialTextures(device, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
+			std::vector<Texture> normalMaps = LoadMaterialTextures(device, deviceContext, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
 			if (!normalMaps.size())
 			{
-				textures.push_back(Texture::DefaultTexture(device));
+				textures.push_back(Texture::DefaultTexture(device, deviceContext));
 				//RAD_CORE_WARN("Model with path : {0} does not have Normal Maps", WStringToString(m_ModelDirectory));
 			}
 			else
@@ -152,10 +152,10 @@ namespace rad
 				textures.push_back(normalMaps[0]);
 			}
 
-			std::vector<Texture> heightMaps = LoadMaterialTextures(device, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
+			std::vector<Texture> heightMaps = LoadMaterialTextures(device, deviceContext, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
 			if (!heightMaps.size())
 			{
-				textures.push_back(Texture::DefaultTexture(device));
+				textures.push_back(Texture::DefaultTexture(device, deviceContext));
 				//RAD_CORE_WARN("Model with path : {0} does not have Height Maps", WStringToString(m_ModelDirectory));
 			}
 			else
@@ -166,10 +166,10 @@ namespace rad
 		else
 		{
 			// Can be optimized further.
-			textures.emplace_back(Texture::DefaultTexture(device));
-			textures.emplace_back(Texture::DefaultTexture(device));
-			textures.emplace_back(Texture::DefaultTexture(device));
-			textures.emplace_back(Texture::DefaultTexture(device));
+			textures.emplace_back(Texture::DefaultTexture(device, deviceContext));
+			textures.emplace_back(Texture::DefaultTexture(device, deviceContext));
+			textures.emplace_back(Texture::DefaultTexture(device, deviceContext));
+			textures.emplace_back(Texture::DefaultTexture(device, deviceContext));
 		}
 
 		Mesh newMesh{};
@@ -177,7 +177,7 @@ namespace rad
 		m_Meshes.push_back(newMesh);
 	}
 
-	std::vector<Texture> Model::LoadMaterialTextures(ID3D11Device* device, aiMaterial* material, aiTextureType textureType, TextureTypes type)
+	std::vector<Texture> Model::LoadMaterialTextures(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiMaterial* material, aiTextureType textureType, TextureTypes type)
 	{
 		std::vector<Texture> textures;
 
@@ -205,11 +205,11 @@ namespace rad
 
 				if (type == TextureTypes::TextureDiffuse || type == TextureTypes::TextureSpecular)
 				{
-					texture.Init(device, path, true);
+					texture.Init(device, deviceContext, path, true);
 				}
 				else
 				{
-					texture.Init(device, path, false);
+					texture.Init(device, deviceContext, path, false);
 				}
 
 				textures.push_back(texture);
@@ -245,10 +245,10 @@ namespace rad
 		ImGui::TreePop();
 	}
 
-	Model Model::CubeModel(ID3D11Device* device)
+	Model Model::CubeModel(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 	{
 		Model cube;
-		cube.Init(device, L"../Assets/Models/Cube/glTF/Cube.gltf");
+		cube.Init(device, deviceContext, L"../Assets/Models/Cube/glTF/Cube.gltf");
 
 		return cube;
 	}

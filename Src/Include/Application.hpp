@@ -4,12 +4,12 @@
 
 namespace rad
 {
-	class Engine;
+	class EngineBase;
 
 	class Application
 	{
 	public:
-		[[nodiscard]] static int Run(std::shared_ptr<Engine> engine, HINSTANCE instance);
+		[[nodiscard]] static int Run(std::shared_ptr<EngineBase> engine, HINSTANCE instance);
 		[[nodiscard]] static HWND GetWindowHandle();
 
 		static double GetDeltaTime();
