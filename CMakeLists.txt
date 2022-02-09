@@ -27,8 +27,9 @@ target_include_directories(
     ${PROJECT_NAME}
     PUBLIC
     ${STB_INCLUDE_DIRS}
-    ${PROJECT_SOURCE_DIR}/Src/
-    ${PROJECT_SOURCE_DIR}/Src/Include
+    ${PROJECT_SOURCE_DIR}/Engine/
+    ${PROJECT_SOURCE_DIR}/SandBox/
+    ${PROJECT_SOURCE_DIR}/Engine/Pch.hpp
 )
 
 # Not including any of the windows files here because of the #ifdef's used.
@@ -44,8 +45,9 @@ target_precompile_headers(${PROJECT_NAME}
     <cassert>
     <exception>
     <filesystem>
+    <thread>
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/Src/Pch.hpp
+    ${PROJECT_SOURCE_DIR}/Engine/Pch.hpp
 )
 
 target_link_libraries(${PROJECT_NAME} spdlog::spdlog_header_only assimp::assimp imgui::imgui) 
