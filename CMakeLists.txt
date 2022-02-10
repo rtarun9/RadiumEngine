@@ -28,7 +28,7 @@ target_include_directories(
     PUBLIC
     ${STB_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}/Engine/
-    ${PROJECT_SOURCE_DIR}/SandBox/
+    ${PROJECT_SOURCE_DIR}/Engine/RadiumEngine/
     ${PROJECT_SOURCE_DIR}/Engine/Pch.hpp
 )
 

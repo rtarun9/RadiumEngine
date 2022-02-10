@@ -199,12 +199,12 @@ namespace rad
 		// Texture2D normalMap : register(t9);
 		// Texture2D emmisiveMap : register(t10);
 	
-		m_Albedo.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_albedo.jpg");
-		m_Metallic.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg");
-		m_Roughness.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg");
+		m_Albedo.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_albedo.jpg", true);
+		m_Metallic.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg", false);
+		m_Roughness.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg", false);
 		m_AO.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_AO.jpg");
-		m_Normal.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_normal.jpg");
-		m_Emissive.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_emissive.jpg");
+		m_Normal.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_normal.jpg", false);
+		m_Emissive.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_emissive.jpg", true);
 
 		m_SkyBoxModel = Model::CubeModel(m_Device.Get(), m_DeviceContext.Get());
 
@@ -213,6 +213,8 @@ namespace rad
 
 		// Setup Render targets.
 		m_OffscreenRT.Init(m_Device.Get(), m_Width, m_Height);
+
+		m_BlurRT.Init(m_Device.Get(), m_Width / 8, m_Height / 8);
 
 		// Setup bloom RT's
 		m_BloomPreFilterRT.Init(m_Device.Get(), m_Width, m_Height);
@@ -441,9 +443,12 @@ namespace rad
 			m_Normal.Bind(m_DeviceContext.Get(), 9);
 			m_Emissive.Bind(m_DeviceContext.Get(), 10);
 
-			m_ConvolutedSkyBox.Bind(m_DeviceContext.Get(), 11);
+			m_SkyBox.Bind(m_DeviceContext.Get(), 11);
 
 			m_MaterialConstantBuffer.BindPS(m_DeviceContext.Get(), 2);
+
+			m_WrapSampler.Bind(m_DeviceContext.Get());
+			m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
 
 			object.Draw(m_DeviceContext.Get());
 		}
@@ -527,50 +532,102 @@ namespace rad
 
 		m_BloomPassRTs[0].Draw(m_DeviceContext.Get());
 
-		// Downsamping passes
-		for (int i = 1; i < BLOOM_PASSES; i++)
+		for (int i = 0; i < BLOOM_PASSES; i++)
 		{
-			m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
-
-			ID3D11ShaderResourceView* srvs[1] =
+			// Downsamping passes
+			for (int i = 1; i < BLOOM_PASSES; i++)
 			{
-				m_BloomPassRTs[i - 1].m_SRV.Get(),
-			};
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
 
-			m_DeviceContext->PSSetShaderResources(0, 1, srvs);
-			m_ClampSampler.Bind(m_DeviceContext.Get());
+				m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
 
-			m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
-		}
+				ID3D11ShaderResourceView* srvs[1] =
+				{
+					m_BloomPassRTs[i - 1].m_SRV.Get(),
+				};
 
-		m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+				m_DeviceContext->PSSetShaderResources(0, 1, srvs);
+				m_ClampSampler.Bind(m_DeviceContext.Get());
 
-		ID3D11ShaderResourceView* nullSrv[2] =
-		{
-			nullptr,
-			nullptr
-		};
+				m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
 
-		m_DeviceContext->PSSetShaderResources(0, 2, nullSrv);
+				m_BlurShaderModule.Bind(m_DeviceContext.Get());
+				m_BlurRT.Bind(m_DeviceContext.Get());
 
-		// Upsampling passes
-		for (int i = BLOOM_PASSES - 1; i > 0; i--)
-		{
-			m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BloomPassRTs[i].m_SRV.GetAddressOf());
+				m_BlurRT.Draw(m_DeviceContext.Get());
 
-			ID3D11ShaderResourceView* srvs[2] =
+				ID3D11ShaderResourceView* nullSrv[1] =
+				{
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
+
+			}
+
+			m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+
+			ID3D11ShaderResourceView* nullSrv[2] =
 			{
-				m_BloomPassRTs[i].m_SRV.Get(),
-				// The main idea was to be able to add m and the m - 1 RT, but that gives a error as same texture cannot be used for both SRV and RTV at the same time.
-				// So for now, it only does SRV.
-				//m_BloomSubPassRTs[i - 1].m_SRV.Get()
+				nullptr,
 				nullptr
 			};
 
-			m_DeviceContext->PSSetShaderResources(0, 2, srvs);
-			m_ClampSampler.Bind(m_DeviceContext.Get());
+			m_DeviceContext->PSSetShaderResources(0, 2, nullSrv);
 
-			m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+			// Upsampling passes
+			for (int i = BLOOM_PASSES - 1; i > 0; i--)
+			{
+				m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+
+				ID3D11ShaderResourceView* srvs[2] =
+				{
+					m_BloomPassRTs[i].m_SRV.Get(),
+					// The main idea was to be able to add m and the m - 1 RT, but that gives a error as same texture cannot be used for both SRV and RTV at the same time.
+					// So for now, it only does SRV.
+					//m_BloomSubPassRTs[i - 1].m_SRV.Get()
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+
+				m_BlurShaderModule.Bind(m_DeviceContext.Get());
+				m_BlurRT.Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BloomPassRTs[i - 1].m_SRV.GetAddressOf());
+				m_BlurRT.Draw(m_DeviceContext.Get());
+
+
+				ID3D11ShaderResourceView* nullSrv[1] =
+				{
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+				
+				m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+				
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+				
+				m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+			}
 		}
 	}
 

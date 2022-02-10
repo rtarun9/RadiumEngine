@@ -5,17 +5,7 @@
 #include "Camera.hpp"
 #include "UIManager.hpp"
 
-#include "Graphics/DepthStencil.hpp"
-#include "Graphics/Mesh.hpp"
-#include "Graphics/Model.hpp"
-#include "Graphics/Shader.hpp"
-#include "Graphics/Buffer.hpp"
-#include "Graphics/InputLayout.hpp"
-#include "Graphics/Texture.hpp"
-#include "Graphics/TextureSampler.hpp"
-#include "Graphics/Lights.hpp"
-#include "Graphics/RenderTarget.hpp"
-#include "Graphics/SkyBox.hpp"
+#include "RadiumEngine.hpp"
 
 namespace rad
 {

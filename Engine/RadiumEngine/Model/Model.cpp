@@ -1,4 +1,4 @@
-#include "Graphics/Model.hpp"
+#include "Model/Model.hpp"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>

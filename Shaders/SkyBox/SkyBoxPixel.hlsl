@@ -9,5 +9,5 @@ SamplerState samplerState : register(s0);
 
 float4 PsMain(PSInput input) : SV_Target
 {
-    return tex.Sample(samplerState, input.worldPosition.xyz);
+    return tex.Sample(samplerState, input.worldPosition.xyz) * 0.8f;
 }

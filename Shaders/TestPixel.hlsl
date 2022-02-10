@@ -30,6 +30,7 @@ static const int DEPTH_TEXTURE_DIMENSION = 2048;
 struct PSInput
 {
     float4 position : SV_Position;
+    float4 worldPosition : WORLD_POSITION;
     float3 normal : NORMAL;
     float2 texCoord : TEXCOORD;
     float3 color : COLOR;
@@ -40,9 +41,9 @@ struct PSInput
 };
 
 
-float CalculateShadow(PSInput input)
+float CalculateShadow(float4 position)
 {
-    float4 shadowPosition = input.lightTransformedPosition;
+    float4 shadowPosition = position;
     shadowPosition.xyz /= shadowPosition.w;
 
     shadowPosition.x = 0.5f * shadowPosition.x + 0.5f;
@@ -98,17 +99,18 @@ float4 PsMain(PSInput input) : SV_Target
     // Doesnt work as expected, should be fine as long as clear color is black.
     clip(alpha < 0.1f ? -1 : 1);
 
-    float shadowResult = CalculateShadow(input);
+    float shadowResult = CalculateShadow(input.lightTransformedPosition);
 
 
     float3 normal = normalTexture.Sample(clampTextureSampler, input.texCoord).xyz;
     // Convert to -1, 1 range
     normal = normal * 2.0f - float3(1.0f, 1.0f, 1.0f);
-    normal = normalize(mul(input.TBN, normal));
+    normal = normalize(mul(normal, input.TBN));
 
     float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(input.normal), input) * shadowResult * lightStrength);
 
     float4 result = float4(lightColor, 1.0f) * lightCalculationResult * diffTexture;
+    
     result.a = alpha;
     return result;
 }

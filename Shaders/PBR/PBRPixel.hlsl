@@ -16,7 +16,7 @@ cbuffer CameraData : register(b1)
 cbuffer Material : register(b2)
 {
     float metallicValue;
-    float3 padding2;
+    float3 padding3;
 };
 
 Texture2D diffuseTexture : register(t0);
@@ -38,8 +38,7 @@ TextureCube environmentMap : register(t11);
 SamplerState textureSampler : register(s0);
 SamplerState clampTextureSampler : register(s1);
 
-// This values needs to be same as set in Lights.hpp -> SHADOW_MAP_DIMENSION
-static const int DEPTH_TEXTURE_DIMENSION = 2048;
+static const float PI = 3.14159265359f;
 
 struct PSInput
 {
@@ -55,9 +54,9 @@ struct PSInput
 };
 
 // Lower the viewing angle, better the reflection is (more pronounced effect).
-float3 FresnelSchlick(float cosTheta, float3 F0)
+float3 FresnelSchlick(float cosTheta, float3 F0, float roughness)
 {
-    return F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * pow(clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
+    return F0 + (max(float3(1.0 - roughness, 1.0 - roughness, 1.0 - roughness), F0) - F0) * pow(clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
 }
 
 // Normal distribution function using the GGx / Trowbridge-reitz model.
@@ -72,7 +71,7 @@ float DistributionGGX(float3 N, float3 H, float roughness)
 	
     float numerator = alphaSquare;
     float denominator = (NdotHSquare * (alphaSquare - 1.0) + 1.0);
-    denominator = 3.14159 * denominator * denominator;
+    denominator = PI * denominator * denominator;
 	denominator = max(denominator, 0.000001f);
 
     return numerator / denominator;
@@ -91,6 +90,7 @@ float GeometrySchlickGGX(float NdotV, float roughness)
     return numerator / denominator;
 }
 
+// The Geometry function needs to be calculated for N.V and N.L.
 float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 {
     float NdotV = max(dot(N, V), 0.0);
@@ -112,14 +112,16 @@ float4 PsMain(PSInput input) : SV_Target
 
     float3 albedo = pow(albedoMap.Sample(textureSampler, input.texCoord).xyz, 2.2);
 
-    float metallic = metallicValue;
-    float roughness = roughnessMap.Sample(textureSampler, input.texCoord).x;
+    float metallic = roughnessMap.Sample(textureSampler, input.texCoord).x;
+    float roughness = roughnessMap.Sample(textureSampler, input.texCoord).y;
+
     float ao = aoMap.Sample(textureSampler, input.texCoord).x;
 
     float3 N = normalMap.Sample(textureSampler, input.texCoord).xyz;
     // Convert to -1, 1 range
-  //  N = N * 2.0f - float3(1.0f, 1.0f, 1.0f);
-    N = normalize(mul(input.TBN, N));
+    N = N * 2.0f - float3(1.0f, 1.0f, 1.0f);
+    N = normalize(mul(N, input.TBN));
+
 
     float3 emmisive = emmisiveMap.Sample(textureSampler, input.texCoord).xyz;
 
@@ -136,7 +138,7 @@ float4 PsMain(PSInput input) : SV_Target
 
     float3 F0 = float3(0.04, 0.04f, 0.04f);
     F0 = lerp(F0, albedo, float3(metallic, metallic, metallic));
-    float3 F = FresnelSchlick(max(dot(H, V), 0.0f), F0);
+    float3 F = FresnelSchlick(max(dot(H, V), 0.0f), F0, roughness);
 
     float NDF = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
@@ -144,11 +146,11 @@ float4 PsMain(PSInput input) : SV_Target
     // calculate color based on rendering equation.
 
     // KD + KS = 1 according to energy conservation.
-    float3 KS = FresnelSchlick(max(dot(H, V), 0.0f), F0);
+    float3 KS = FresnelSchlick(max(dot(H, V), 0.0f), F0, roughness);
     float3 KD = float3(1.0f, 1.0f, 1.0f) - KS;
-    KD  = KD * (1.0f - metallicValue);
+    KD  = KD * (1.0f - metallic);
 
-    float3 lambertComponent = albedo / 3.14159;
+    float3 lambertComponent = albedo / PI;
 
     // Calculate Cook - Torrance BRDF for the specular light part.
     float3 numerator = NDF * G * F;
@@ -158,13 +160,13 @@ float4 PsMain(PSInput input) : SV_Target
     float3 BRDF = lambertComponent * KD + specular;
 
     float NDOTL = max(dot(N, L), 0.0f);
-    float3 outgoingLight = emmisive + BRDF * lightColor  * lightStrength * NDOTL;
+    float3 outgoingLight = emmisive * lightStrength  + BRDF * lightColor  * NDOTL;
 
     // Sample from environment map
-    float3 diffuse = environmentMap.Sample(textureSampler, N).rgb * albedo * KD * lightStrength;
+    float3 irradiance = environmentMap.Sample(textureSampler, N).rgb * albedo * KD * ao;
 
     // In the rendering equation emissive light does not come under the integral part, hence directly adding it to outgoing color.
-    float4 result = float4(outgoingLight + diffuse, 1.0f);
+    float4 result = float4(outgoingLight + irradiance, 1.0f);
     result.a = alpha;
 
     return result;

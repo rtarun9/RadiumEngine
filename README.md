@@ -1,6 +1,7 @@
 # RadiumEngine
 
-Work in progress Graphics renderer using C++ / DirectX11.
+Work in progress PBR Graphics renderer using C++ / DirectX11.
+Made for learning and testing modern graphics techniques and the D3D11 Api.
 
 # Samples
 
@@ -10,3 +11,8 @@ Work in progress Graphics renderer using C++ / DirectX11.
 
 > [WIP] PBR and Diffuse IBL
 ![](Assets/Screenshots/RadiumEngine-DiffuseIBLTest.png)
+
+# Dependencies used
+* STB Image
+* Assimp
+* DearImGUI

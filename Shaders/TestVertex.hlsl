@@ -26,6 +26,7 @@ struct VSInput
 struct PSInput
 {
     float4 position : SV_Position;
+    float4 worldPosition : WORLD_POSITION;
     float3 normal : NORMAL;
     float2 texCoord : TEXCOORD;
     float3 color : COLOR;
@@ -57,6 +58,8 @@ PSInput VsMain(VSInput input)
     psInput.TBN = TBN;
     psInput.modelMatrix = modelMatrix;
     psInput.shadowProjectionViewMatrix = lightSpaceTransform;
+    psInput.worldPosition = mul(modelMatrix, float4(input.position, 1.0f));
+
     //psInput.position = psInput.lightTransformedPosition;
 
     return psInput;

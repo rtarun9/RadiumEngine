@@ -1,6 +1,6 @@
 #include "Pch.hpp"
 
-#include "Graphics/InputLayout.hpp"
+#include "Graphics/API/InputLayout.hpp"
 
 namespace rad
 {

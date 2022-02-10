@@ -1,4 +1,4 @@
-#include "Graphics/Buffer.hpp"
+#include "Graphics/API/Buffer.hpp"
 
 namespace rad
 {

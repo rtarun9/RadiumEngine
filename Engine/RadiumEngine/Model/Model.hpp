@@ -3,7 +3,7 @@
 #include "Pch.hpp"
 
 #include "Mesh.hpp"
-#include "Graphics/Buffer.hpp"
+#include "Graphics/API/Buffer.hpp"
 
 #include <assimp/scene.h>
 

@@ -1,4 +1,4 @@
-#include "Graphics/SkyBox.hpp"
+#include "Graphics/API/SkyBox.hpp"
 
 #include "stb_image.h"
 

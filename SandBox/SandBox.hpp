@@ -2,22 +2,7 @@
 
 #include "Pch.hpp"
 
-#include "Core/EngineBase.hpp"
-
-#include "Core/Camera.hpp"
-#include "Core/UIManager.hpp"
-
-#include "Graphics/DepthStencil.hpp"
-#include "Graphics/Mesh.hpp"
-#include "Graphics/Model.hpp"
-#include "Graphics/Shader.hpp"
-#include "Graphics/Buffer.hpp"
-#include "Graphics/InputLayout.hpp"
-#include "Graphics/Texture.hpp"
-#include "Graphics/TextureSampler.hpp"
-#include "Graphics/Lights.hpp"
-#include "Graphics/RenderTarget.hpp"
-#include "Graphics/SkyBox.hpp"
+#include "RadiumEngine.hpp"
 
 namespace rad
 {
@@ -36,11 +21,11 @@ namespace rad
 		float padding;
 	};
 
-	class Engine : public EngineBase
+	class SandBox : public EngineBase
 	{
 	public:
-		Engine(const std::wstring& title, uint32_t width, uint32_t height);
-		~Engine() = default;
+		SandBox(const std::wstring& title, uint32_t width, uint32_t height);
+		~SandBox() = default;
 
 		void OnInit() override;
 		void OnUpdate(float deltaTime) override;
@@ -76,7 +61,7 @@ namespace rad
 
 	private:
 		static constexpr uint32_t NUMBER_OF_FRAMES = 3;
-		static constexpr uint32_t BLOOM_PASSES = 7;
+		static constexpr uint32_t BLOOM_PASSES = 6;
 
 		// To be != 1 only when Guassian blur is implemented.
 		static constexpr uint32_t BLUR_PASSES = 1;
@@ -134,6 +119,7 @@ namespace rad
 
 		RenderTarget m_BloomPreFilterRT;
 		RenderTarget m_BloomPassRTs[BLOOM_PASSES];
+		RenderTarget m_BlurRT;
 
 		TextureSampler m_WrapSampler;
 		TextureSampler m_ClampSampler;

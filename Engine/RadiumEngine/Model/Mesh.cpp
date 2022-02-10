@@ -1,4 +1,4 @@
-#include "Graphics/Mesh.hpp"
+#include "Model/Mesh.hpp"
 
 namespace rad
 {

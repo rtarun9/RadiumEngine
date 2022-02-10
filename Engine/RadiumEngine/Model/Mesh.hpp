@@ -2,8 +2,8 @@
 
 #include "Pch.hpp"
 
-#include "Graphics/Buffer.hpp"
-#include "Graphics/Texture.hpp"
+#include "Graphics/API/Buffer.hpp"
+#include "Graphics/API/Texture.hpp"
 
 namespace rad
 {

@@ -1,4 +1,4 @@
-#include "Graphics/TextureSampler.hpp"
+#include "Graphics/API/TextureSampler.hpp"
 
 namespace rad
 {

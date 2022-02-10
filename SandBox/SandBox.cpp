@@ -1,26 +1,26 @@
 #include "Pch.hpp"
 
-#include "Engine.hpp"
+#include "SandBox.hpp"
 #include "Core/Application.hpp"
 
 namespace rad
 {
 
-	Engine::Engine(const std::wstring& title, uint32_t width, uint32_t height)
+	SandBox::SandBox(const std::wstring& title, uint32_t width, uint32_t height)
 		: m_Title(title), m_Width(width), m_Height(height), EngineBase(title, width, height)
 	{
 
 		m_AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 	}
 
-	void Engine::OnInit()
+	void SandBox::OnInit()
 	{
 		InitRendererCore();
 
 		LoadContent();
 	}
 
-	void Engine::OnUpdate(float deltaTime)
+	void SandBox::OnUpdate(float deltaTime)
 	{
 		m_Camera.Update(deltaTime);
 
@@ -42,7 +42,7 @@ namespace rad
 		m_CameraConstantBuffer.Update(m_DeviceContext.Get());
 	}
 
-	void Engine::OnRender()
+	void SandBox::OnRender()
 	{
 		m_UIManager.FrameBegin();
 
@@ -122,7 +122,7 @@ namespace rad
 		LogErrors();
 	}
 
-	void Engine::OnDestroy()
+	void SandBox::OnDestroy()
 	{
 		m_DeviceContext->ClearState();
 		m_DeviceContext->Flush();
@@ -130,7 +130,7 @@ namespace rad
 		m_UIManager.Close();
 	}
 
-	void Engine::OnKeyDown(uint32_t keycode)
+	void SandBox::OnKeyDown(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, true);
 
@@ -140,7 +140,7 @@ namespace rad
 		}
 	}
 
-	void Engine::OnKeyUp(uint32_t keycode)
+	void SandBox::OnKeyUp(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, false);
 
@@ -150,7 +150,7 @@ namespace rad
 		}
 	}
 
-	void Engine::LoadContent()
+	void SandBox::LoadContent()
 	{
 		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get());
 	
@@ -196,6 +196,9 @@ namespace rad
 		// Setup bloom RT's
 		m_BloomPreFilterRT.Init(m_Device.Get(), m_Width, m_Height);
 
+		m_BlurRT.Init(m_Device.Get(), m_Width / 4, m_Height / 4);
+
+
 		int previousPassWidth = m_Width;
 		int previousPassHeight = m_Height;
 		for (int i = 0; i < BLOOM_PASSES; i++)
@@ -219,22 +222,22 @@ namespace rad
 		RAD_CORE_INFO("Content loaded succesfully");
 	}
 
-	uint32_t Engine::GetWidth() const
+	uint32_t SandBox::GetWidth() const
 	{
 		return m_Width;
 	}
 
-	uint32_t Engine::GetHeight() const
+	uint32_t SandBox::GetHeight() const
 	{
 		return m_Height;
 	}
 
-	std::wstring Engine::GetTitle() const
+	std::wstring SandBox::GetTitle() const
 	{
 		return m_Title;
 	}
 
-	void Engine::InitRendererCore()
+	void SandBox::InitRendererCore()
 	{
 		m_Log.Init();
 
@@ -356,7 +359,7 @@ namespace rad
 		RAD_CORE_INFO("Initialized renderer core");
 	}
 
-	void Engine::UpdateGameObjects()
+	void SandBox::UpdateGameObjects()
 	{
 		ImGui::Begin("Scene Graph");
 		for (auto& gameObjects : m_GameObjects)
@@ -380,12 +383,12 @@ namespace rad
 		ImGui::End();
 	}
 
-	void Engine::UpdateLights()
+	void SandBox::UpdateLights()
 	{
 		m_DirectionalLight.UpdateData();
 	}
 
-	void Engine::RenderGameObjects()
+	void SandBox::RenderGameObjects()
 	{
 		for (auto& gameObject : m_GameObjects)
 		{
@@ -397,7 +400,7 @@ namespace rad
 		}
 	}
 
-	void Engine::RenderSkyBox()
+	void SandBox::RenderSkyBox()
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_SkyBoxDepthStencilState.Get(), 1.0f);
 		m_DeviceContext->RSSetState(m_SkyBoxRasterizerState.Get());
@@ -414,7 +417,7 @@ namespace rad
 		m_DeviceContext->DrawIndexed(36, 0, 0);
 	}
 
-	void Engine::ShadowRenderPass()
+	void SandBox::ShadowRenderPass()
 	{
 		m_ShadowShaderModule.Bind(m_DeviceContext.Get());
 		m_DirectionalLight.m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
@@ -440,7 +443,7 @@ namespace rad
 		RenderGameObjects();
 	}
 
-	void Engine::BloomPass()
+	void SandBox::BloomPass()
 	{
 		// Blur the offscreen RT before passing to bloom prefilter
 		RenderTarget blurredOffscreenRTV = m_OffscreenRT;
@@ -475,54 +478,106 @@ namespace rad
 
 		m_BloomPassRTs[0].Draw(m_DeviceContext.Get());
 
-		// Downsamping passes
-		for (int i = 1; i < BLOOM_PASSES; i++)
+		for (int i = 0; i < BLOOM_PASSES; i++)
 		{
-			m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
-
-			ID3D11ShaderResourceView* srvs[1] =
+			// Downsamping passes
+			for (int i = 1; i < BLOOM_PASSES; i++)
 			{
-				m_BloomPassRTs[i - 1].m_SRV.Get(),
-			};
-			
-			m_DeviceContext->PSSetShaderResources(0, 1, srvs);
-			m_ClampSampler.Bind(m_DeviceContext.Get());
-			
-			m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
-		}
-		
-		m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
 
-		ID3D11ShaderResourceView* nullSrv[2] =
-		{
-			nullptr,
-			nullptr
-		};
+				m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
 
-		m_DeviceContext->PSSetShaderResources(0, 2, nullSrv);
+				ID3D11ShaderResourceView* srvs[1] =
+				{
+					m_BloomPassRTs[i - 1].m_SRV.Get(),
+				};
 
-		// Upsampling passes
-		for (int i = BLOOM_PASSES - 1; i > 0; i--)
-		{
-			m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+				m_DeviceContext->PSSetShaderResources(0, 1, srvs);
+				m_ClampSampler.Bind(m_DeviceContext.Get());
 
-			ID3D11ShaderResourceView* srvs[2] =
+				m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
+
+				m_BlurShaderModule.Bind(m_DeviceContext.Get());
+				m_BlurRT.Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BloomPassRTs[i].m_SRV.GetAddressOf());
+				m_BlurRT.Draw(m_DeviceContext.Get());
+
+				ID3D11ShaderResourceView* nullSrv[1] =
+				{
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i].Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i].Draw(m_DeviceContext.Get());
+
+			}
+
+			m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+
+			ID3D11ShaderResourceView* nullSrv[2] =
 			{
-				m_BloomPassRTs[i].m_SRV.Get(),
-				// The main idea was to be able to add m and the m - 1 RT, but that gives a error as same texture cannot be used for both SRV and RTV at the same time.
-				// So for now, it only does SRV.
-				//m_BloomSubPassRTs[i - 1].m_SRV.Get()
+				nullptr,
 				nullptr
 			};
 
-			m_DeviceContext->PSSetShaderResources(0, 2, srvs);
-			m_ClampSampler.Bind(m_DeviceContext.Get());
+			m_DeviceContext->PSSetShaderResources(0, 2, nullSrv);
 
-			m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+			// Upsampling passes
+			for (int i = BLOOM_PASSES - 1; i > 0; i--)
+			{
+				m_BloomPassShaderModule.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+
+				ID3D11ShaderResourceView* srvs[2] =
+				{
+					m_BloomPassRTs[i].m_SRV.Get(),
+					// The main idea was to be able to add m and the m - 1 RT, but that gives a error as same texture cannot be used for both SRV and RTV at the same time.
+					// So for now, it only does SRV.
+					//m_BloomSubPassRTs[i - 1].m_SRV.Get()
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+
+				m_BlurShaderModule.Bind(m_DeviceContext.Get());
+				m_BlurRT.Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BloomPassRTs[i - 1].m_SRV.GetAddressOf());
+				m_BlurRT.Draw(m_DeviceContext.Get());
+
+
+				ID3D11ShaderResourceView* nullSrv[1] =
+				{
+					nullptr
+				};
+
+				m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
+
+				m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+				m_ClampSampler.Bind(m_DeviceContext.Get());
+
+				m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
+			}
 		}
 	}
 
-	void Engine::RenderPass()
+	void SandBox::RenderPass()
 	{
 	
 		m_PostProcessShaderModule.Bind(m_DeviceContext.Get());
@@ -563,7 +618,7 @@ namespace rad
 		m_DeviceContext->DrawIndexed(6, 0, 0);
 	}
 
-	void Engine::Clear()
+	void SandBox::Clear()
 	{
 		// WARNING : This static should technically not be a problem, but find a alternative method for this regardless.
 		// Current problem : Clear Color keeps getting set to 0, 0, 0, 0 as it is a local variable, but making it static prevents this.
@@ -580,12 +635,12 @@ namespace rad
 		m_DepthStencil.Clear(m_DeviceContext.Get());
 	}
 
-	void Engine::Present()
+	void SandBox::Present()
 	{
 		m_SwapChain->Present(1, 0);
 	}
 
-	void Engine::LogErrors()
+	void SandBox::LogErrors()
 	{
 #ifdef _DEBUG
 		UINT64 messageCount = m_InfoQueue->GetNumStoredMessages();

@@ -1,4 +1,4 @@
-#include "Graphics/Lights.hpp"
+#include "Lights/Lights.hpp"
 
 #include <imgui.h>
 
