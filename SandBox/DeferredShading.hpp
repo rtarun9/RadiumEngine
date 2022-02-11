@@ -21,11 +21,11 @@ namespace rad
 		float padding;
 	};
 
-	class SandBox : public EngineBase
+	class DeferredShading : public EngineBase
 	{
 	public:
-		SandBox(std::wstring_view title, uint32_t width, uint32_t height);
-		~SandBox() = default;
+		DeferredShading(std::wstring_view title, uint32_t width, uint32_t height);
+		~DeferredShading() = default;
 
 		void OnInit() override;
 		void OnUpdate(float deltaTime) override;
@@ -48,9 +48,9 @@ namespace rad
 		void UpdateLights();
 
 		void RenderGameObjects();
-		void RenderSkyBox();
 
 		void ShadowRenderPass();
+		void DeferredPass();
 		void BloomPass();
 		void RenderPass();
 
@@ -65,6 +65,8 @@ namespace rad
 
 		// To be != 1 only when Guassian blur is implemented.
 		static constexpr uint32_t BLUR_PASSES = 1;
+
+		static constexpr uint32_t NUMBER_OF_POINT_LIGHTS = 100;
 
 		// Viewport and window variables.
 		uint32_t m_Width;
@@ -94,7 +96,7 @@ namespace rad
 
 		wrl::ComPtr<ID3D11RasterizerState> m_RasterizerState;
 		wrl::ComPtr<ID3D11RasterizerState> m_SkyBoxRasterizerState;
-		
+
 		wrl::ComPtr<ID3D11BlendState> m_BlendState;
 
 		D3D11_VIEWPORT m_Viewport = {};
@@ -107,12 +109,8 @@ namespace rad
 		ShaderModule m_BloomPassShaderModule{};
 		ShaderModule m_BlurShaderModule{};
 		ShaderModule m_PostProcessShaderModule{};
-		ShaderModule m_SkyBoxShaderModule{};
-
-		std::unordered_map<std::wstring, Model> m_GameObjects;
-		Model m_SkyBoxModel;
-		SkyBox m_SkyBox;
 		
+		std::unordered_map<std::wstring, Model> m_GameObjects;
 		RenderTarget m_PostProcessRT;
 
 		RenderTarget m_OffscreenRT;
@@ -120,6 +118,19 @@ namespace rad
 		RenderTarget m_BloomPreFilterRT;
 		RenderTarget m_BloomPassRTs[BLOOM_PASSES];
 		RenderTarget m_BlurRT;
+
+		struct DeferredPassData
+		{
+			RenderTarget m_PositionRT{};
+			RenderTarget m_NormalRT{};
+			RenderTarget m_AlbedoRT{};
+			RenderTarget m_SpecularRT{};
+
+			DepthStencil m_DepthStencil{};
+			ShaderModule m_DeferredModule{};
+		};
+
+		DeferredPassData m_DeferredPassData{};
 
 		TextureSampler m_WrapSampler;
 		TextureSampler m_ClampSampler;
@@ -130,8 +141,10 @@ namespace rad
 		Log m_Log;
 
 		DirectionalLight m_DirectionalLight;
-	
+
 		ConstantBuffer<PerFrameData> m_PerFrameConstantBuffer;
 		ConstantBuffer<CameraConstantBuffer> m_CameraConstantBuffer;
+
+		std::array<PointLight, NUMBER_OF_POINT_LIGHTS> m_PointLights;
 	};
 }

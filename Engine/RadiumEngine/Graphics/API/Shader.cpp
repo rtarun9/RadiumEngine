@@ -2,7 +2,7 @@
 
 namespace rad
 {
-	wrl::ComPtr<ID3DBlob> Shader::LoadShader(const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
+	wrl::ComPtr<ID3DBlob> Shader::LoadShader(std::wstring_view fileName, std::wstring_view entryPoint, std::wstring_view shaderProfile)
 	{
 		wrl::ComPtr<ID3DBlob> errorBlob;
 
@@ -12,13 +12,13 @@ namespace rad
 		flags = D3DCOMPILE_DEBUG;
 #endif
 
-		HRESULT hr = D3DCompileFromFile(fileName.c_str(), nullptr, nullptr, WStringToString(entryPoint).c_str(), WStringToString(shaderProfile).c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
+		HRESULT hr = D3DCompileFromFile(fileName.data(), nullptr, nullptr, WStringToString(entryPoint.data()).data(), WStringToString(shaderProfile.data()).c_str(), flags, 0, &m_ShaderBlob, &errorBlob);
 
 		if (FAILED(hr))
 		{
 			if (hr == 0x80070003)
 			{
-				ErrorMessage(std::wstring(L"Could not find file at path : ") + fileName);
+				ErrorMessage(std::wstring(L"Could not find file at path : ") + fileName.data());
 			}
 			if (errorBlob.Get())
 			{
@@ -38,7 +38,7 @@ namespace rad
 	}
 
 
-	void VertexShader::Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
+	void VertexShader::Init(ID3D11Device* device, std::wstring_view  fileName, std::wstring_view  entryPoint, std::wstring_view shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
@@ -50,7 +50,7 @@ namespace rad
 		deviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0u);
 	}
 
-	void PixelShader::Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile)
+	void PixelShader::Init(ID3D11Device* device, std::wstring_view fileName, std::wstring_view entryPoint, std::wstring_view shaderProfile)
 	{
 		m_ShaderBlob = LoadShader(fileName, entryPoint, shaderProfile);
 
@@ -62,7 +62,7 @@ namespace rad
 		deviceContext->PSSetShader(m_PixelShader.Get(), nullptr, 0u);
 	}
 
-	void ShaderModule::Init(ID3D11Device* device, InputLayoutType inputLayoutType, const std::wstring& vsFilePath, const std::wstring& psFilePath)
+	void ShaderModule::Init(ID3D11Device* device, InputLayoutType inputLayoutType, std::wstring_view vsFilePath, std::wstring_view psFilePath)
 	{
 		if (inputLayoutType == InputLayoutType::DefaultInput)
 		{

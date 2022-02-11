@@ -15,7 +15,7 @@ namespace rad
 		inputElementDesc.InputSlotClass = D3D11_INPUT_CLASSIFICATION::D3D11_INPUT_PER_VERTEX_DATA;
 		inputElementDesc.InstanceDataStepRate = 0;
 
-		m_InputElementDescs.push_back(inputElementDesc);
+		m_InputElementDescs.push_back(std::move(inputElementDesc));
 	}
 
 	void InputLayout::Init(ID3D11Device* device, ID3DBlob* vertexBlob)

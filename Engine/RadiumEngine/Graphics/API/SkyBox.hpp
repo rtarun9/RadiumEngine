@@ -7,7 +7,12 @@ namespace rad
 	class SkyBox
 	{
 	public:
-		void Init(ID3D11Device* device, const std::wstring& filePath, bool srgbTexture = true, bool hdri_texture = false);
+		// To be used for CubeMaps (by providing path to images (6 for cubemap)
+		void Init(ID3D11Device* device, std::wstring_view filePath, bool srgbTexture , bool hdri_texture = false);
+
+		// To be used for equirectangular map
+		void Init(ID3D11Device* device, std::wstring_view filePath);
+
 		void Bind(ID3D11DeviceContext* deviceContext, int slot = 0);
 
 	public:

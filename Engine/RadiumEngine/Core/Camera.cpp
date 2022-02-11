@@ -4,16 +4,6 @@
 
 namespace rad
 {
-
-	Camera::Camera()
-		: m_WorldFront(dx::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)), m_WorldRight(dx::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)),
-		m_WorldUp(dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), m_CameraFront(m_WorldFront), m_CameraRight(m_WorldRight),
-		m_CameraUp(m_WorldUp), m_CameraTarget(dx::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f)), m_CameraPosition(dx::XMVectorSet(0.0f, 0.0f, -10.0f, 0.0f)),
-		m_Yaw(0.0f), m_Pitch(0.0f), m_ViewMatrix(dx::XMMatrixIdentity()), m_CameraRotationMatrix(dx::XMMatrixIdentity()),
-		m_MovementSpeed(1000.0f), m_RotationSpeed(0.05f), m_KeyState{ false }
-	{
-	}
-
 	void Camera::HandleInput(uint32_t keycode, bool isKeyDown)
 	{
 		// WARNING : Because we are not checking if keycode exist within keymap, any keycode not beloning in it will cause camera to move forward,

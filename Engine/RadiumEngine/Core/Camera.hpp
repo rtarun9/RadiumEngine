@@ -7,7 +7,7 @@ namespace rad
 	class Camera
 	{
 	public:
-		Camera();
+		Camera() = default;
 
 		void HandleInput(uint32_t keycode, bool isKeyDown = false);
 
@@ -18,29 +18,29 @@ namespace rad
 		dx::XMMATRIX GetViewMatrix() const;
 
 	public:
-		dx::XMVECTOR m_WorldFront;
-		dx::XMVECTOR m_WorldRight;
-		dx::XMVECTOR m_WorldUp;
+		dx::XMVECTOR m_WorldFront{ dx::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
+		dx::XMVECTOR m_WorldRight{ dx::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
+		dx::XMVECTOR m_WorldUp{ dx::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
-		dx::XMVECTOR m_CameraFront;
-		dx::XMVECTOR m_CameraRight;
-		dx::XMVECTOR m_CameraUp;
+		dx::XMVECTOR m_CameraFront{m_WorldFront};
+		dx::XMVECTOR m_CameraRight{m_WorldRight};
+		dx::XMVECTOR m_CameraUp{m_WorldUp};
 
-		dx::XMVECTOR m_CameraTarget;
-		dx::XMVECTOR m_CameraPosition;
+		dx::XMVECTOR m_CameraTarget{ dx::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f )};
+		dx::XMVECTOR m_CameraPosition{ dx::XMVectorSet(0.0f, 0.0f, -10.0f, 0.0f)};
 
-		dx::XMMATRIX m_CameraRotationMatrix;
+		dx::XMMATRIX m_CameraRotationMatrix{ dx::XMMatrixIdentity()};
 
-		dx::XMMATRIX m_ViewMatrix;
+		dx::XMMATRIX m_ViewMatrix{dx::XMMatrixIdentity()};
 
 		// Movement speed is for WASD
 		// Rotation speed is for orientation
-		float m_MovementSpeed;
-		float m_RotationSpeed;
+		float m_MovementSpeed{1000.0f};
+		float m_RotationSpeed{0.05f};
 
-		float m_Yaw;
-		float m_Pitch;
+		float m_Yaw{0.0f};
+		float m_Pitch{0.0f};
 
-		bool m_KeyState[Keys::TotalKeyCount];
+		bool m_KeyState[Keys::TotalKeyCount]{false};
 	};
 }

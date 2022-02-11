@@ -30,7 +30,7 @@ namespace rad
 	class PBRTest : public EngineBase
 	{
 	public:
-		PBRTest(const std::wstring& title, uint32_t width, uint32_t height);
+		PBRTest(std::wstring_view title, uint32_t width, uint32_t height);
 		~PBRTest() = default;
 
 		void OnInit() override;

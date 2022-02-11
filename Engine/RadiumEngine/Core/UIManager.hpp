@@ -10,7 +10,7 @@ namespace rad
 	class UIManager
 	{
 	public:
-		void Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext);
+		void Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int width, int height);
 
 		void FrameBegin();
 
@@ -28,6 +28,11 @@ namespace rad
 
 	public:
 		static constexpr int IMAGE_DIMENSIONS = 500;
+
+		int m_Width{};
+		int m_Height{};
+
+		ImGuiViewport m_Viewport{};
 
 		bool m_DisplayUI{true};
 	};

@@ -56,7 +56,6 @@ namespace rad
 		void UpdateData();
 
 	public:
-		static constexpr float SHADOW_MAP_DIMENSION = 2048;
 		ConstantBuffer<LightData> m_LightConstantBuffer;
 	};
 }

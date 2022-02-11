@@ -10,7 +10,7 @@ namespace rad
 	{
 	public:
 		[[nodiscard]]
-		wrl::ComPtr<ID3DBlob> LoadShader(const std::wstring& fileName, const std::wstring& entryPoint, const std::wstring& shaderProfile);
+		wrl::ComPtr<ID3DBlob> LoadShader(std::wstring_view fileName, std::wstring_view entryPoint, std::wstring_view shaderProfile);
 
 		[[nodiscard]]
 		wrl::ComPtr<ID3DBlob> GetBytecodeBlob();
@@ -22,7 +22,7 @@ namespace rad
 	class VertexShader : public Shader
 	{
 	public:
-		void Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint = L"VsMain", const std::wstring& shaderProfile = L"vs_5_0");
+		void Init(ID3D11Device* device, std::wstring_view  fileName, std::wstring_view entryPoint = L"VsMain", std::wstring_view shaderProfile = L"vs_5_0");
 
 		void Bind(ID3D11DeviceContext* deviceContext);
 
@@ -33,7 +33,7 @@ namespace rad
 	class PixelShader : public Shader
 	{
 	public:
-		void Init(ID3D11Device* device, const std::wstring& fileName, const std::wstring& entryPoint = L"PsMain", const std::wstring& shaderProfile = L"ps_5_0");
+		void Init(ID3D11Device* device, std::wstring_view fileName, std::wstring_view entryPoint = L"PsMain", std::wstring_view = L"ps_5_0");
 
 		void Bind(ID3D11DeviceContext* deviceContext);
 
@@ -48,7 +48,7 @@ namespace rad
 
 		InputLayout inputLayout{};
 
-		void Init(ID3D11Device* device, InputLayoutType inputLayoutType, const std::wstring& vsFilePath, const std::wstring& psFilePath);
+		void Init(ID3D11Device* device, InputLayoutType inputLayoutType, std::wstring_view vsFilePath, std::wstring_view psFilePath);
 		void Bind(ID3D11DeviceContext* deviceContext);
 	};
 }

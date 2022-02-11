@@ -6,7 +6,7 @@
 namespace rad
 {
 
-	SandBox::SandBox(const std::wstring& title, uint32_t width, uint32_t height)
+	SandBox::SandBox(std::wstring_view title, uint32_t width, uint32_t height)
 		: m_Title(title), m_Width(width), m_Height(height), EngineBase(title, width, height)
 	{
 
@@ -152,7 +152,7 @@ namespace rad
 
 	void SandBox::LoadContent()
 	{
-		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get());
+		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get(), m_Width, m_Height);
 	
 		m_DefaultShaderModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/TestPixel.hlsl");
 		

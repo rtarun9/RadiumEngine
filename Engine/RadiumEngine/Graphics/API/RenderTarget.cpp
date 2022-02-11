@@ -34,12 +34,14 @@ namespace rad
 		ThrowIfFailed(device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, &m_SRV));
 
 		std::vector<RTVertex> vertices;
+		vertices.reserve(4);
+
 		vertices.push_back({ dx::XMFLOAT2(-1.0f, -1.0f), dx::XMFLOAT2(0.0f, 1.0f) });
 		vertices.push_back({ dx::XMFLOAT2(-1.0f,   1.0f), dx::XMFLOAT2(0.0f, 0.0f) });
 		vertices.push_back({ dx::XMFLOAT2(1.0f, 1.0f), dx::XMFLOAT2(1.0f, 0.0f) });
 		vertices.push_back({ dx::XMFLOAT2(1.0f, -1.0f), dx::XMFLOAT2(1.0f, 1.0f) });
 
-		m_Vertices.Init(device, vertices);
+		m_Vertices.Init(device, std::move(vertices));
 
 		std::vector<uint32_t> indices =
 		{
@@ -47,7 +49,7 @@ namespace rad
 			0, 2, 3
 		};
 
-		m_IndexBuffer.Init(device, indices);
+		m_IndexBuffer.Init(device, std::move(indices));
 
 		m_Viewport = {};
 		m_Viewport.TopLeftX = 0;

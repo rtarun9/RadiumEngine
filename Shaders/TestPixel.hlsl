@@ -97,7 +97,7 @@ float4 PsMain(PSInput input) : SV_Target
     float alpha = diffTexture.a;
     
     // Doesnt work as expected, should be fine as long as clear color is black.
-    clip(alpha < 0.1f ? -1 : 1);
+    clip(alpha < 0.5f ? -1 : 1);
 
     float shadowResult = CalculateShadow(input.lightTransformedPosition);
 
@@ -107,7 +107,7 @@ float4 PsMain(PSInput input) : SV_Target
     normal = normal * 2.0f - float3(1.0f, 1.0f, 1.0f);
     normal = normalize(mul(normal, input.TBN));
 
-    float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(input.normal), input) * shadowResult * lightStrength);
+    float4 lightCalculationResult = CalculateAmbientLight(input) + (CalculateDiffuseLight(normalize(normal), input) * shadowResult * lightStrength);
 
     float4 result = float4(lightColor, 1.0f) * lightCalculationResult * diffTexture;
     

@@ -5,12 +5,12 @@
 
 namespace rad
 {
-	void Texture::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, const std::wstring& filePath, bool srgbTexture)
+	void Texture::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring_view filePath, bool srgbTexture)
 	{
-		unsigned char* texture = stbi_load(WStringToString(filePath).c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
+		unsigned char* texture = stbi_load(WStringToString(filePath.data()).c_str(), &m_TexWidth, &m_TexHeight, &m_TexChannels, 4);
 		if (!texture)
 		{
-			RAD_CORE_WARN("Failed to load texture with path : {0}. Using default texture instead", WStringToString(filePath));
+			RAD_CORE_WARN("Failed to load texture with path : {0}. Using default texture instead", WStringToString(filePath.data()));
 			*this = DefaultTexture(device, deviceContext);
 			return;
 		}
@@ -40,7 +40,7 @@ namespace rad
 		textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 		D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
-		textureSubresourceData.pSysMem = texture;
+		textureSubresourceData.pSysMem = std::move(texture);
 		textureSubresourceData.SysMemPitch = textureBytesPerRow;
 		textureSubresourceData.SysMemSlicePitch = 0;
 
@@ -58,6 +58,7 @@ namespace rad
 		deviceContext->GenerateMips(m_TextureView.Get());
 
 		stbi_image_free(texture);
+		
 
 		//RAD_CORE_INFO("Loaded texture with path : {0}", WStringToString(filePath));
 	}

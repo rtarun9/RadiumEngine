@@ -20,12 +20,12 @@ namespace rad
 	private:
 		static constexpr LPCWSTR WINDOW_CLASS_NAME = L"Base Window Class";
 
-		static inline HWND s_WindowHandle;
+		static inline HWND s_WindowHandle{};
 
 		static inline std::chrono::high_resolution_clock s_Clock;
 		static inline std::chrono::high_resolution_clock::time_point s_PreviousFrameTime;
 		static inline std::chrono::high_resolution_clock::time_point s_CurrentFrameTime;
-		static inline double s_DeltaTime;
+		static inline double s_DeltaTime{0.0};
 
 	};
 }

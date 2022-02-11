@@ -1,26 +1,26 @@
 #include "Pch.hpp"
 
-#include "PBRTest.hpp"
+#include "DeferredShading.hpp"
 #include "Core/Application.hpp"
 
 namespace rad
 {
 
-	PBRTest::PBRTest(std::wstring_view title, uint32_t width, uint32_t height)
+	DeferredShading::DeferredShading(std::wstring_view title, uint32_t width, uint32_t height)
 		: m_Title(title), m_Width(width), m_Height(height), EngineBase(title, width, height)
 	{
 
 		m_AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 	}
 
-	void PBRTest::OnInit()
+	void DeferredShading::OnInit()
 	{
 		InitRendererCore();
 
 		LoadContent();
 	}
 
-	void PBRTest::OnUpdate(float deltaTime)
+	void DeferredShading::OnUpdate(float deltaTime)
 	{
 		m_Camera.Update(deltaTime);
 
@@ -31,12 +31,11 @@ namespace rad
 		m_PerFrameConstantBuffer.Update(m_DeviceContext.Get());
 
 		m_DirectionalLight.Update(m_DeviceContext.Get());
-		for (int i = 0; i < 1; i++)
-		{
-			m_PointLights[i].Update(m_DeviceContext.Get());
-		}
 
-		m_MaterialConstantBuffer.Update(m_DeviceContext.Get());
+		for (PointLight& light : m_PointLights)
+		{
+			light.Update(m_DeviceContext.Get());
+		}
 
 		m_PostProcessRT.Update(m_DeviceContext.Get());
 		m_BloomPreFilterRT.Update(m_DeviceContext.Get());
@@ -48,7 +47,7 @@ namespace rad
 		m_CameraConstantBuffer.Update(m_DeviceContext.Get());
 	}
 
-	void PBRTest::OnRender()
+	void DeferredShading::OnRender()
 	{
 		m_UIManager.FrameBegin();
 
@@ -64,8 +63,10 @@ namespace rad
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
+
 		// Setup for shadow pass
 		ShadowRenderPass();
+
 
 		// Setup for Main render pass (for objects)
 		m_DeviceContext->OMSetRenderTargets(1u, m_OffscreenRT.m_RTV.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
@@ -73,17 +74,24 @@ namespace rad
 
 		Clear();
 
-		RenderSkyBox();
-
 		// Render to offscreen RT (shadow map SRV required)m_SkyBoxModel
 		// As shadow map is modifying viewport this is necessary,
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
+		// Do pass for Deferred shading
+		m_DeviceContext->RSSetState(m_RasterizerState.Get());
+
+		DeferredPass();
+
+		// Setup for Main render pass (for objects)
+		m_DeviceContext->OMSetRenderTargets(1u, m_OffscreenRT.m_RTV.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
+
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 		m_WrapSampler.Bind(m_DeviceContext.Get());
 		m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
 
 		// Bind constant buffers
-		m_PointLights[0].m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
+		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
 
 		m_DefaultShaderModule.Bind(m_DeviceContext.Get());
 		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
@@ -119,7 +127,12 @@ namespace rad
 		m_UIManager.DisplayRenderTarget(L"Shadow Depth Buffer", depthMapShaderResourceView.Get());
 		m_UIManager.DisplayRenderTarget(L"Offscreen RT", m_OffscreenRT.m_SRV.Get());
 		m_UIManager.DisplayRenderTarget(L"Bloom Prefilter RT", m_BloomPreFilterRT.m_SRV.Get());
-	
+
+		m_UIManager.DisplayRenderTarget(L"Albedo Deferred pass", m_DeferredPassData.m_AlbedoRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Position Deferred pass", m_DeferredPassData.m_PositionRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Normal Deferred pass", m_DeferredPassData.m_NormalRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Specular Deferred pass", m_DeferredPassData.m_SpecularRT.m_SRV.Get());
+
 		m_UIManager.Render();
 
 		Present();
@@ -128,7 +141,7 @@ namespace rad
 		LogErrors();
 	}
 
-	void PBRTest::OnDestroy()
+	void DeferredShading::OnDestroy()
 	{
 		m_DeviceContext->ClearState();
 		m_DeviceContext->Flush();
@@ -136,7 +149,7 @@ namespace rad
 		m_UIManager.Close();
 	}
 
-	void PBRTest::OnKeyDown(uint32_t keycode)
+	void DeferredShading::OnKeyDown(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, true);
 
@@ -146,7 +159,7 @@ namespace rad
 		}
 	}
 
-	void PBRTest::OnKeyUp(uint32_t keycode)
+	void DeferredShading::OnKeyUp(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, false);
 
@@ -156,11 +169,11 @@ namespace rad
 		}
 	}
 
-	void PBRTest::LoadContent()
+	void DeferredShading::LoadContent()
 	{
-		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get(), m_ClientWidth, m_ClientHeight);
+		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get(), m_Width, m_Height);
 
-		m_DefaultShaderModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/PBR/PBRVertex.hlsl", L"../Shaders/PBR/PBRPixel.hlsl");
+		m_DefaultShaderModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/TestPixel.hlsl");
 
 		// Setup shadow shader
 		m_ShadowShaderModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/Shadow/ShadowMapVertex.hlsl", L"../Shaders/Shadow/ShadowMapPixel.hlsl");
@@ -178,46 +191,28 @@ namespace rad
 
 		m_PostProcessShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/PostProcessVertex.hlsl", L"../Shaders/PostProcessPixel.hlsl");
 
-		m_SkyBoxShaderModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/SkyBox/SkyBoxVertex.hlsl", L"../Shaders/SkyBox/SkyBoxPixel.hlsl");
-
 		// Setup for samplers.
-		m_WrapSampler.Init(m_Device.Get(), D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP);
+		m_WrapSampler.Init(m_Device.Get(), D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP);
 		m_ClampSampler.Init(m_Device.Get(), D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP);
 
 		// Setup constant buffers
 		m_PerFrameConstantBuffer.Init(m_Device.Get());
 		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 10000.0f);
-
+		
 		// Setup for game objects
-		m_GameObjects[L"Helmet"].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-
-		// Textures needed for the PBR model (taken from PBRPixel shader)
-		// Texture2D albedoMap : register(t5);
-		// Texture2D metallicMap : register(t6);
-		// Texture2D roughnessMap : register(t7);
-		// Texture2D aoMap : register(t8);
-		// Texture2D normalMap : register(t9);
-		// Texture2D emmisiveMap : register(t10);
-	
-		m_Albedo.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_albedo.jpg", true);
-		m_Metallic.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg", false);
-		m_Roughness.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_metalRoughness.jpg", false);
-		m_AO.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_AO.jpg");
-		m_Normal.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_normal.jpg", false);
-		m_Emissive.Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/DamagedHelmet/glTF/Default_emissive.jpg", true);
-
-		m_SkyBoxModel = Model::CubeModel(m_Device.Get(), m_DeviceContext.Get());
+		m_GameObjects[L"Sponza"].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Sponza/glTF/Sponza.gltf");
+		m_GameObjects[L"Sponza"].m_Transform.scale = dx::XMFLOAT3(0.1f, 0.1f, 0.1f);
 
 		m_DirectionalLight.Init(m_Device.Get());
-		m_PointLights[0].Init(m_Device.Get());
 
 		// Setup Render targets.
 		m_OffscreenRT.Init(m_Device.Get(), m_Width, m_Height);
 
-		m_BlurRT.Init(m_Device.Get(), m_Width / 8, m_Height / 8);
-
 		// Setup bloom RT's
 		m_BloomPreFilterRT.Init(m_Device.Get(), m_Width, m_Height);
+
+		m_BlurRT.Init(m_Device.Get(), m_Width / 4, m_Height / 4);
+
 
 		int previousPassWidth = m_Width;
 		int previousPassHeight = m_Height;
@@ -235,35 +230,41 @@ namespace rad
 		m_PostProcessRT.Init(m_Device.Get(), m_Width, m_Height);
 
 		m_CameraConstantBuffer.Init(m_Device.Get());
+
+		m_DeferredPassData.m_PositionRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_DeferredPassData.m_AlbedoRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_DeferredPassData.m_NormalRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_DeferredPassData.m_SpecularRT.Init(m_Device.Get(), m_Width, m_Height);
+
+		m_DeferredPassData.m_DeferredModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPixel.hlsl");
 		
-		m_MaterialConstantBuffer.Init(m_Device.Get());
-		m_MaterialConstantBuffer.m_Data.metallicValue = 1.0f;
+		m_DeferredPassData.m_DepthStencil.Init(m_Device.Get(), m_Width, m_Height, DSType::DepthStencil);
 
-		// Need to use 8K texture instead.
-		m_SkyBox.Init(m_Device.Get(), L"../Assets/CubeMaps/HDRI", true, true);
-		m_ConvolutedSkyBox.Init(m_Device.Get(), L"../Assets/CubeMaps/ConvolutedHDRI", true, true);
-
-		RAD_CORE_INFO("Content loaded succesfully");
-
-		m_Camera.m_MovementSpeed = 70.0f;
+		Model cubeModel = Model::CubeModel(m_Device.Get(), m_DeviceContext.Get());
+		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
+		{
+			m_PointLights[i].Init(m_Device.Get());
+			
+			m_GameObjects.insert({ StringToWString("Light" + std::to_string(i)), cubeModel });
+		}
 	}
 
-	uint32_t PBRTest::GetWidth() const
+	uint32_t DeferredShading::GetWidth() const
 	{
 		return m_Width;
 	}
 
-	uint32_t PBRTest::GetHeight() const
+	uint32_t DeferredShading::GetHeight() const
 	{
 		return m_Height;
 	}
 
-	std::wstring PBRTest::GetTitle() const
+	std::wstring DeferredShading::GetTitle() const
 	{
 		return m_Title;
 	}
 
-	void PBRTest::InitRendererCore()
+	void DeferredShading::InitRendererCore()
 	{
 		m_Log.Init();
 
@@ -385,7 +386,7 @@ namespace rad
 		RAD_CORE_INFO("Initialized renderer core");
 	}
 
-	void PBRTest::UpdateGameObjects()
+	void DeferredShading::UpdateGameObjects()
 	{
 		ImGui::Begin("Scene Graph");
 		for (auto& gameObjects : m_GameObjects)
@@ -409,69 +410,30 @@ namespace rad
 		ImGui::End();
 	}
 
-	void PBRTest::UpdateLights()
+	void DeferredShading::UpdateLights()
 	{
-		ImGui::Begin("Material properties");
-		ImGui::SliderFloat("Metallic value", &m_MaterialConstantBuffer.m_Data.metallicValue, 0.0f, 5.0f);
-		ImGui::End();
-
 		m_DirectionalLight.UpdateData();
-		m_PointLights[0].UpdateData();
+
+		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
+		{
+			m_PointLights[i].UpdateData();
+			m_GameObjects[StringToWString("Light" + std::to_string(i))].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
+		}
 	}
 
-	void PBRTest::RenderGameObjects()
+	void DeferredShading::RenderGameObjects()
 	{
-
 		for (auto& gameObject : m_GameObjects)
 		{
 			auto& object = gameObject.second;
 
 			object.m_PerObjectConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Object);
 
-			// Textures needed for the PBR model (taken from PBRPixel shader)
-			// Texture2D albedoMap : register(t5);
-			// Texture2D metallicMap : register(t6);
-			// Texture2D roughnessMap : register(t7);
-			// Texture2D aoMap : register(t8);
-			// Texture2D normalMap : register(t9);
-			// Texture2D emmisiveMap : register(t10);
-
-			m_Albedo.Bind(m_DeviceContext.Get(), 5);
-			m_Metallic.Bind(m_DeviceContext.Get(), 6);
-			m_Roughness.Bind(m_DeviceContext.Get(), 7);
-			m_AO.Bind(m_DeviceContext.Get(), 8);
-			m_Normal.Bind(m_DeviceContext.Get(), 9);
-			m_Emissive.Bind(m_DeviceContext.Get(), 10);
-
-			m_SkyBox.Bind(m_DeviceContext.Get(), 11);
-
-			m_MaterialConstantBuffer.BindPS(m_DeviceContext.Get(), 2);
-
-			m_WrapSampler.Bind(m_DeviceContext.Get());
-			m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
-
 			object.Draw(m_DeviceContext.Get());
 		}
 	}
 
-	void PBRTest::RenderSkyBox()
-	{
-		m_DeviceContext->OMSetDepthStencilState(m_SkyBoxDepthStencilState.Get(), 1.0f);
-		m_DeviceContext->RSSetState(m_SkyBoxRasterizerState.Get());
-
-		m_SkyBoxShaderModule.Bind(m_DeviceContext.Get());
-
-		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get());
-		m_WrapSampler.Bind(m_DeviceContext.Get());
-		m_SkyBox.Bind(m_DeviceContext.Get());
-
-		m_SkyBoxModel.m_Meshes[0].m_VertexBuffer.Bind(m_DeviceContext.Get());
-		m_SkyBoxModel.m_Meshes[0].m_IndexBuffer.Bind(m_DeviceContext.Get());
-
-		m_DeviceContext->DrawIndexed(36, 0, 0);
-	}
-
-	void PBRTest::ShadowRenderPass()
+	void DeferredShading::ShadowRenderPass()
 	{
 		m_ShadowShaderModule.Bind(m_DeviceContext.Get());
 		m_DirectionalLight.m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
@@ -497,7 +459,44 @@ namespace rad
 		RenderGameObjects();
 	}
 
-	void PBRTest::BloomPass()
+	void DeferredShading::DeferredPass()
+	{
+		// Various passes to processes
+		// m_DeferredPassData.m_AlbedoModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredAlbedoPixel.hlsl");
+		// m_DeferredPassData.m_NormalModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredNormalPixel.hlsl");
+		// m_DeferredPassData.m_PositionModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPositionPixel.hlsl");
+		// m_DeferredPassData.m_SpecularModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredSpecularPixel.hlsl");
+
+		m_DeferredPassData.m_DeferredModule.Bind(m_DeviceContext.Get());
+
+		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
+
+		m_WrapSampler.Bind(m_DeviceContext.Get());
+		m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
+
+
+		static float clearRTVColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_AlbedoRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_NormalRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_PositionRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_SpecularRT.m_RTV.Get(), clearRTVColor);
+
+		ID3D11RenderTargetView* mrt[4] =
+		{
+			m_DeferredPassData.m_AlbedoRT.m_RTV.Get(),
+			m_DeferredPassData.m_NormalRT.m_RTV.Get(),
+			m_DeferredPassData.m_PositionRT.m_RTV.Get(),
+			m_DeferredPassData.m_SpecularRT.m_RTV.Get()
+		};
+
+		m_DeviceContext->OMSetRenderTargets(4u, mrt, m_DeferredPassData.m_DepthStencil.m_DepthStencilView.Get());
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+
+		RenderGameObjects();
+	}
+
+	void DeferredShading::BloomPass()
 	{
 		// Blur the offscreen RT before passing to bloom prefilter
 		RenderTarget blurredOffscreenRTV = m_OffscreenRT;
@@ -620,18 +619,18 @@ namespace rad
 
 				m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
 				m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
-				
+
 				m_BloomPassRTs[i - 1].Bind(m_DeviceContext.Get());
-				
+
 				m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
 				m_ClampSampler.Bind(m_DeviceContext.Get());
-				
+
 				m_BloomPassRTs[i - 1].Draw(m_DeviceContext.Get());
 			}
 		}
 	}
 
-	void PBRTest::RenderPass()
+	void DeferredShading::RenderPass()
 	{
 
 		m_PostProcessShaderModule.Bind(m_DeviceContext.Get());
@@ -672,7 +671,7 @@ namespace rad
 		m_DeviceContext->DrawIndexed(6, 0, 0);
 	}
 
-	void PBRTest::Clear()
+	void DeferredShading::Clear()
 	{
 		// WARNING : This static should technically not be a problem, but find a alternative method for this regardless.
 		// Current problem : Clear Color keeps getting set to 0, 0, 0, 0 as it is a local variable, but making it static prevents this.
@@ -687,14 +686,16 @@ namespace rad
 		m_DeviceContext->ClearRenderTargetView(m_OffscreenRT.m_RTV.Get(), clearColor);
 
 		m_DepthStencil.Clear(m_DeviceContext.Get());
+
+		m_DeferredPassData.m_DepthStencil.Clear(m_DeviceContext.Get());
 	}
 
-	void PBRTest::Present()
+	void DeferredShading::Present()
 	{
 		m_SwapChain->Present(1, 0);
 	}
 
-	void PBRTest::LogErrors()
+	void DeferredShading::LogErrors()
 	{
 #ifdef _DEBUG
 		UINT64 messageCount = m_InfoQueue->GetNumStoredMessages();

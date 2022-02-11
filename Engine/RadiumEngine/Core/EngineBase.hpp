@@ -12,7 +12,7 @@ namespace rad
 	class EngineBase
 	{
 	public:
-		EngineBase(const std::wstring& title, uint32_t width, uint32_t height) : m_Title(title), m_Width(width), m_Height(height) {}
+		EngineBase(std::wstring_view title, uint32_t width, uint32_t height) : m_Title(title), m_Width(width), m_Height(height) {}
 		~EngineBase() = default;
 
 		virtual void OnInit() = 0;
@@ -30,8 +30,8 @@ namespace rad
 		std::wstring GetTitle() const { return m_Title; };
 
 	private:
-		uint32_t m_Width;
-		uint32_t m_Height;
+		uint32_t m_Width{};
+		uint32_t m_Height{};
 		std::wstring m_Title;
 	};
 }

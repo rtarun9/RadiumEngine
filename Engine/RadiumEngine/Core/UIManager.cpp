@@ -8,7 +8,7 @@
 
 namespace rad
 {
-	void UIManager::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
+	void UIManager::Init(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int width, int height)
 	{
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -25,6 +25,12 @@ namespace rad
 		ImGui_ImplDX11_Init(device, deviceContext);
 
 		ImGui::GetIO().IniFilename = "../imgui.ini";
+
+		m_Width = width;
+		m_Height = height;
+
+		m_Viewport.Size.x = m_Width;
+		m_Viewport.Size.y = m_Height;
 	}
 
 	void UIManager::FrameBegin()
@@ -33,7 +39,7 @@ namespace rad
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+		ImGui::DockSpaceOverViewport(ImGui::GetWindowViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 	}
 
 	void UIManager::Render()

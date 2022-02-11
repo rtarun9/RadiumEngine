@@ -44,7 +44,6 @@ static inline std::string WStringToString(const std::wstring& wstring)
 	return result;
 }
 
-// NOTE : convert from enum to enum class in the future.
 enum Keys
 {
 	W,
@@ -57,6 +56,7 @@ enum Keys
 	ARight,
 	TotalKeyCount
 };
+
 
 // TODO : Find a way to mark this as either const / constexpr.
 // NOTE:  Ignoring warning of 'prever enum class.

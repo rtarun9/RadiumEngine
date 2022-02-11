@@ -61,6 +61,8 @@ namespace rad
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
 
+		vertices.reserve(mesh->mNumVertices);
+
 		for (uint32_t i = 0; i < mesh->mNumVertices; i++)
 		{
 			Vertex vertex = {};
@@ -101,7 +103,7 @@ namespace rad
 				vertex.bitangent.z = 0;
 			}
 
-			vertices.push_back(vertex);
+			vertices.push_back(std::move(vertex));
 		}
 
 		for (uint32_t i = 0; i < mesh->mNumFaces; i++)
@@ -109,11 +111,12 @@ namespace rad
 			aiFace face = mesh->mFaces[i];
 			for (uint32_t j = 0; j < face.mNumIndices; j++)
 			{
-				indices.push_back(face.mIndices[j]);
+				indices.push_back(std::move(face.mIndices[j]));
 			}
 		}
 
 		std::vector<Texture> textures;
+		textures.reserve(TextureCount);
 
 		// As of now, there will only be 4 textures (one for each type of map)
 		if (mesh->mMaterialIndex >= 0)
@@ -123,11 +126,11 @@ namespace rad
 			if (!diffuseMaps.size())
 			{
 				textures.push_back(Texture::DefaultTexture(device, deviceContext));
-				//RAD_CORE_WARN("Model with path : {0} does not have Diffuse Maps", WStringToString(m_ModelDirectory));
+				RAD_CORE_WARN("Model with path : {0} does not have Diffuse Maps", WStringToString(m_ModelDirectory));
 			}
 			else
 			{
-				textures.push_back(diffuseMaps[0]);
+				textures.push_back(std::move(diffuseMaps[0]));
 			}
 
 			std::vector<Texture>  specularMaps = LoadMaterialTextures(device, deviceContext ,material, aiTextureType_SPECULAR, TextureTypes::TextureSpecular);
@@ -138,7 +141,7 @@ namespace rad
 			}
 			else
 			{
-				textures.push_back(specularMaps[0]);
+				textures.push_back(std::move(specularMaps[0]));
 			}
 
 			std::vector<Texture> normalMaps = LoadMaterialTextures(device, deviceContext, material, aiTextureType_NORMALS, TextureTypes::TextureNormal);
@@ -149,7 +152,7 @@ namespace rad
 			}
 			else
 			{
-				textures.push_back(normalMaps[0]);
+				textures.push_back(std::move(normalMaps[0]));
 			}
 
 			std::vector<Texture> heightMaps = LoadMaterialTextures(device, deviceContext, material, aiTextureType_HEIGHT, TextureTypes::TextureHeight);
@@ -160,7 +163,7 @@ namespace rad
 			}
 			else
 			{
-				textures.push_back(heightMaps[0]);
+				textures.push_back(std::move(heightMaps[0]));
 			}
 		}
 		else
@@ -173,13 +176,15 @@ namespace rad
 		}
 
 		Mesh newMesh{};
-		newMesh.Init(device, vertices, indices, textures);
-		m_Meshes.push_back(newMesh);
+		newMesh.Init(device, std::move(vertices), std::move(indices), std::move(textures));
+		m_Meshes.push_back(std::move(newMesh));
 	}
 
 	std::vector<Texture> Model::LoadMaterialTextures(ID3D11Device* device, ID3D11DeviceContext* deviceContext, aiMaterial* material, aiTextureType textureType, TextureTypes type)
 	{
 		std::vector<Texture> textures;
+
+
 
 		for (uint32_t i = 0; i < material->GetTextureCount(textureType); i++)
 		{
@@ -191,7 +196,7 @@ namespace rad
 			{
 				if (!std::strcmp(WStringToString(m_LoadedTextures[j].path).data(), str.C_Str()))
 				{
-					textures.push_back(m_LoadedTextures[j].texture);
+					textures.push_back(std::move(m_LoadedTextures[j].texture));
 					alreadyAdded = true;
 					break;
 				}
@@ -239,7 +244,7 @@ namespace rad
 	{
 		// NOTE : scaling on Y not working as expected.
 		ImGui::SliderFloat3("Translate", &m_Transform.translation.x, -10.0f, 10.0f);
-		ImGui::SliderFloat3("Rotate", &m_Transform.rotation.x, -180.0f, 180.0f);
+		ImGui::SliderFloat3("Rotate", &m_Transform.rotation.x, -1.0f, 1.0f);
 		ImGui::SliderFloat3("Scale", &m_Transform.scale.x, 0.1f, 50.0f);
 		ImGui::SliderFloat3("Color", &m_PerObjectConstantBuffer.m_Data.color.x, 0.0f, 5.0f);
 		ImGui::TreePop();

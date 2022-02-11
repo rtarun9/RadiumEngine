@@ -30,7 +30,7 @@ namespace rad
 	class VertexBuffer : public Buffer
 	{
 	public:
-		void Init(ID3D11Device* device, const std::vector<T>& vertices)
+		void Init(ID3D11Device* device, std::vector<T>&& vertices)
 		{
 			m_Stride = sizeof(T);
 			m_Offset = 0;
@@ -47,6 +47,7 @@ namespace rad
 			ThrowIfFailed(device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &m_Buffer));
 
 			m_VerticesCount = vertices.size();
+			vertices.clear();
 		}
 
 		void Bind(ID3D11DeviceContext* deviceContext)
@@ -105,7 +106,7 @@ namespace rad
 	class IndexBuffer : public Buffer
 	{
 	public:
-		void Init(ID3D11Device* device, const std::vector<uint32_t>& indices);
+		void Init(ID3D11Device* device, std::vector<uint32_t>&& indices);
 
 		void Bind(ID3D11DeviceContext* deviceContext);
 

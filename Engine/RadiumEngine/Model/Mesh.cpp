@@ -2,19 +2,21 @@
 
 namespace rad
 {
-	void Mesh::Init(ID3D11Device* device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<Texture>& textures)
+	void Mesh::Init(ID3D11Device* device, std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices, std::vector<Texture>&& textures)
 	{
-		m_Vertices = vertices;
-		m_Indices = indices;
-		m_Textures = textures;
+		m_IndicesCount = indices.size();
 
-		m_VertexBuffer.Init(device, m_Vertices);
-		m_IndexBuffer.Init(device, m_Indices);
+		m_Vertices = std::move(vertices);
+		m_Indices = std::move(indices);
+		m_Textures = std::move(textures);
 
-		m_Vertices.clear();
 
-		// Clearning this stops any rendering
-		// m_Indices.clear();
+		m_VertexBuffer.Init(device, std::move(m_Vertices));
+		m_IndexBuffer.Init(device, std::move(m_Indices));
+
+		vertices.clear();
+		indices.clear();
+		textures.clear();
 	}
 
 	void Mesh::Draw(ID3D11DeviceContext* deviceContext)
@@ -33,6 +35,6 @@ namespace rad
 
 		deviceContext->PSSetShaderResources(0, _countof(shaderResourceViews), shaderResourceViews);
 
-		deviceContext->DrawIndexed(m_Indices.size(), 0, 0);
+		deviceContext->DrawIndexed(m_IndexBuffer.m_Size, 0, 0);
 	}
 }
