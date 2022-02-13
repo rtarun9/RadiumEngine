@@ -5,14 +5,16 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 
 # Features
 
-* Physically Based point lights (PBR)
+* Physically Based Rendering (PBR)
 * Image Based Lighting (IBL)
 * Shadow Mapping
 * Bloom (Using repeated up / down sampling technique)
 * Deferred shading
 * Normal mapping
 * HDR lighting and tone mapping
-* Simple UI to configure shader parameters and preview output of various Render Passes.
+* Point and directional lights
+* Simple UI to configure shader parameters and preview output of various Render Passes (using imgui).
+* Logging system (Using spdlog)
 
 # Showcase
 
@@ -31,4 +33,5 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 
 * STB Image 
 * Assimp
-* ImGUi
+* ImGUI
+* Spdlog
