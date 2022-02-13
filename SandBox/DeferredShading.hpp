@@ -128,6 +128,10 @@ namespace rad
 
 			DepthStencil m_DepthStencil{};
 			ShaderModule m_DeferredModule{};
+	
+			RenderTarget m_DeferredLightRT{};
+
+			ShaderModule m_LightModule{};
 		};
 
 		DeferredPassData m_DeferredPassData{};
@@ -146,5 +150,8 @@ namespace rad
 		ConstantBuffer<CameraConstantBuffer> m_CameraConstantBuffer;
 
 		std::array<PointLight, NUMBER_OF_POINT_LIGHTS> m_PointLights;
+		std::array<Model, NUMBER_OF_POINT_LIGHTS> m_LightCubes;
+
+		ShaderModule m_LightShader{};
 	};
 }

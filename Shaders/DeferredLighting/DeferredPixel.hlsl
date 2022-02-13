@@ -54,12 +54,11 @@ PSOutput PsMain(PSInput input) : SV_Target
     float4 diffTexture = diffuseTexture.Sample(textureSampler, input.texCoord);
     float alpha = diffTexture.a;
 
-    clip(alpha < 0.5f ? -1 : 1);
     
     float3 normal = normalTexture.Sample(clampTextureSampler, input.texCoord).xyz;
     // Convert to -1, 1 range
     normal = normal * 2.0f - float3(1.0f, 1.0f, 1.0f);
-    normal = normalize(mul(normal, input.TBN));
+    normal = normalize(mul(input.TBN, normal));
 
     PSOutput output;
     output.albedo = float4(diffTexture.xyz, alpha);

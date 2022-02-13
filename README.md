@@ -9,8 +9,11 @@ Made for learning and testing modern graphics techniques and the D3D11 Api.
 ![](Assets/Screenshots/RadiumEngine-Bloom1.png)
 ![](Assets/Screenshots/RadiumEngine-Bloom2.png)
 
-> [WIP] PBR and Diffuse IBL
+> PBR and Diffuse IBL
 ![](Assets/Screenshots/RadiumEngine-DiffuseIBLTest.png)
+
+> Deferred Shading
+![](Assets/Screenshots/RadiumEngine-DeferredShading.png)
 
 # Dependencies used
 * STB Image

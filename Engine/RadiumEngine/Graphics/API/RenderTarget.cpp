@@ -9,7 +9,7 @@ namespace rad
 		textureDesc.Height = height;
 		textureDesc.MipLevels = 1;
 		textureDesc.ArraySize = 1;
-		textureDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+		textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		textureDesc.SampleDesc.Count = 1;
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
@@ -19,14 +19,14 @@ namespace rad
 		ThrowIfFailed(device->CreateTexture2D(&textureDesc, nullptr, &m_Texture));
 
 		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-		rtvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+		rtvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		rtvDesc.Texture2D.MipSlice = 0;
 
 		ThrowIfFailed(device->CreateRenderTargetView(m_Texture.Get(), &rtvDesc, &m_RTV));
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+		srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.MipLevels = 1;

@@ -32,10 +32,7 @@ namespace rad
 
 		m_DirectionalLight.Update(m_DeviceContext.Get());
 
-		for (PointLight& light : m_PointLights)
-		{
-			light.Update(m_DeviceContext.Get());
-		}
+
 
 		m_PostProcessRT.Update(m_DeviceContext.Get());
 		m_BloomPreFilterRT.Update(m_DeviceContext.Get());
@@ -106,6 +103,19 @@ namespace rad
 
 		RenderGameObjects();
 
+		m_LightShader.Bind(m_DeviceContext.Get());
+		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get());
+
+		int index = 0;
+		for (auto& lightCubes : m_LightCubes)
+		{
+			lightCubes.m_PerObjectConstantBuffer.BindVS(m_DeviceContext.Get(), 1);
+			m_PointLights[index].m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
+			lightCubes.Draw(m_DeviceContext.Get());
+			index++;
+		}
+
+
 		// NOTE : Setting shader resource at slot 4 does cause warnings. This workaround fixes it.
 		ID3D11ShaderResourceView* nullSRVs[] =
 		{
@@ -132,6 +142,8 @@ namespace rad
 		m_UIManager.DisplayRenderTarget(L"Position Deferred pass", m_DeferredPassData.m_PositionRT.m_SRV.Get());
 		m_UIManager.DisplayRenderTarget(L"Normal Deferred pass", m_DeferredPassData.m_NormalRT.m_SRV.Get());
 		m_UIManager.DisplayRenderTarget(L"Specular Deferred pass", m_DeferredPassData.m_SpecularRT.m_SRV.Get());
+
+		m_UIManager.DisplayRenderTarget(L"Deferred Pass", m_DeferredPassData.m_DeferredLightRT.m_SRV.Get());
 
 		m_UIManager.Render();
 
@@ -189,7 +201,7 @@ namespace rad
 		// setup up for the blur shaders.
 		m_BlurShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/Bloom/BlurVertex.hlsl", L"../Shaders/Bloom/BlurPixel.hlsl");
 
-		m_PostProcessShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/PostProcessVertex.hlsl", L"../Shaders/PostProcessPixel.hlsl");
+		m_PostProcessShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/PostProcessVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPostProcessPixel.hlsl");
 
 		// Setup for samplers.
 		m_WrapSampler.Init(m_Device.Get(), D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP);
@@ -231,6 +243,7 @@ namespace rad
 
 		m_CameraConstantBuffer.Init(m_Device.Get());
 
+		m_DeferredPassData.m_DeferredLightRT.Init(m_Device.Get(), m_Width, m_Height);
 		m_DeferredPassData.m_PositionRT.Init(m_Device.Get(), m_Width, m_Height);
 		m_DeferredPassData.m_AlbedoRT.Init(m_Device.Get(), m_Width, m_Height);
 		m_DeferredPassData.m_NormalRT.Init(m_Device.Get(), m_Width, m_Height);
@@ -240,13 +253,37 @@ namespace rad
 		
 		m_DeferredPassData.m_DepthStencil.Init(m_Device.Get(), m_Width, m_Height, DSType::DepthStencil);
 
-		Model cubeModel = Model::CubeModel(m_Device.Get(), m_DeviceContext.Get());
+		m_DeferredPassData.m_LightModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/RenderTargetVertex.hlsl", L"../Shaders/DeferredLighting/DeferredLightingPixel.hlsl");
+
+
+		srand((unsigned)time(NULL));
+
+		float xPosition = -200.0f;
 		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
 		{
-			m_PointLights[i].Init(m_Device.Get());
-			
-			m_GameObjects.insert({ StringToWString("Light" + std::to_string(i)), cubeModel });
+			PointLight pt{};
+
+			pt.Init(m_Device.Get());
+			pt.m_LightConstantBuffer.m_Data.lightColor.x = (float)rand() / RAND_MAX;
+			pt.m_LightConstantBuffer.m_Data.lightColor.y = (float)rand() / RAND_MAX;
+			pt.m_LightConstantBuffer.m_Data.lightColor.z = (float)rand() / RAND_MAX;
+
+			pt.m_LightConstantBuffer.m_Data.lightDirection.x = xPosition;
+			pt.m_LightConstantBuffer.m_Data.lightDirection.y = 5.0f;
+			pt.m_LightConstantBuffer.m_Data.lightDirection.z = (int)((float)i / NUMBER_OF_POINT_LIGHTS) % 5 * 10.0f;
+
+			m_PointLights[i] = pt;
+			m_LightCubes[i].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Cube/glTF/Cube.gltf");
+
+			m_LightCubes[i].m_Transform.translation.x = xPosition;
+			m_LightCubes[i].m_Transform.translation.y = 50.0f;
+
+
+			xPosition += 10.0f;
 		}
+
+
+		m_LightShader.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/LightPixel.hlsl");
 	}
 
 	uint32_t DeferredShading::GetWidth() const
@@ -417,7 +454,9 @@ namespace rad
 		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
 		{
 			m_PointLights[i].UpdateData();
-			m_GameObjects[StringToWString("Light" + std::to_string(i))].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
+			m_PointLights[i].Update(m_DeviceContext.Get());
+			m_LightCubes[i].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
+			m_LightCubes[i].UpdateTransformComponent(m_DeviceContext.Get());
 		}
 	}
 
@@ -494,6 +533,8 @@ namespace rad
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 
 		RenderGameObjects();
+
+		// Do the final calculation based on the defererd pass.
 	}
 
 	void DeferredShading::BloomPass()
@@ -632,6 +673,48 @@ namespace rad
 
 	void DeferredShading::RenderPass()
 	{
+		m_DeviceContext->OMSetRenderTargets(1, m_DeferredPassData.m_DeferredLightRT.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->RSSetViewports(1, &m_Viewport);
+		m_DeferredPassData.m_LightModule.Bind(m_DeviceContext.Get());
+		m_ClampSampler.Bind(m_DeviceContext.Get());
+
+		ID3D11ShaderResourceView* mrt[4] =
+		{
+			m_DeferredPassData.m_AlbedoRT.m_SRV.Get(),
+			m_DeferredPassData.m_NormalRT.m_SRV.Get(),
+			m_DeferredPassData.m_PositionRT.m_SRV.Get(),
+			m_DeferredPassData.m_SpecularRT.m_SRV.Get()
+		};
+
+		m_DeviceContext->PSSetShaderResources(0, 4, mrt);
+
+		m_CameraConstantBuffer.BindPS(m_DeviceContext.Get());
+
+		LightData lightBuffer[NUMBER_OF_POINT_LIGHTS] = {};
+
+		wrl::ComPtr<ID3D11Buffer> deferredLightDataBuffer;
+
+		D3D11_BUFFER_DESC constantBufferDesc = {};
+		constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		constantBufferDesc.CPUAccessFlags = 0;
+		constantBufferDesc.ByteWidth = sizeof(lightBuffer);
+		constantBufferDesc.MiscFlags = 0;
+
+
+		ThrowIfFailed(m_Device->CreateBuffer(&constantBufferDesc, nullptr, &deferredLightDataBuffer));
+		
+
+		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
+		{
+			lightBuffer[i] = m_PointLights[i].m_LightConstantBuffer.m_Data;
+		}
+
+		m_DeviceContext->UpdateSubresource(deferredLightDataBuffer.Get(), 0, nullptr, lightBuffer, 0, 0);
+
+		m_DeviceContext->PSSetConstantBuffers(1, 1, deferredLightDataBuffer.GetAddressOf());
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
 
 		m_PostProcessShaderModule.Bind(m_DeviceContext.Get());
 
@@ -645,18 +728,20 @@ namespace rad
 
 		m_PostProcessRT.Update(m_DeviceContext.Get());
 
-
 		// Pass the offscreen RT and bloom RT. In future this will be done in another render pass (Post Process pass).
 		ID3D11ShaderResourceView* srvs[] =
 		{
 			 m_OffscreenRT.m_SRV.Get(),
-			 m_BloomPassRTs[0].m_SRV.Get()
+			 m_BloomPassRTs[0].m_SRV.Get(),
+			 m_DeferredPassData.m_DeferredLightRT.m_SRV.Get()
 		};
 
-		m_DeviceContext->PSSetShaderResources(0, 2, srvs);
+		m_DeviceContext->PSSetShaderResources(0, 3, srvs);
 		m_ClampSampler.Bind(m_DeviceContext.Get());
 
 		m_PostProcessRT.Draw(m_DeviceContext.Get());
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
 
 		// Final pass.
 		m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
