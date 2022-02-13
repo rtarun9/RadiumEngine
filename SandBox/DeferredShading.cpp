@@ -259,8 +259,17 @@ namespace rad
 		srand((unsigned)time(NULL));
 
 		float xPosition = -200.0f;
+		float zPosition = 30.0f;
+
 		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
 		{
+			if (i == 100 || i == 200)
+			{
+				xPosition = -200.0f;
+				zPosition += 10.0f;
+			}
+
+
 			PointLight pt{};
 
 			pt.Init(m_Device.Get());
@@ -270,13 +279,14 @@ namespace rad
 
 			pt.m_LightConstantBuffer.m_Data.lightDirection.x = xPosition;
 			pt.m_LightConstantBuffer.m_Data.lightDirection.y = 5.0f;
-			pt.m_LightConstantBuffer.m_Data.lightDirection.z = (int)((float)i / NUMBER_OF_POINT_LIGHTS) % 5 * 10.0f;
+			pt.m_LightConstantBuffer.m_Data.lightDirection.z = zPosition;
 
 			m_PointLights[i] = pt;
 			m_LightCubes[i].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Cube/glTF/Cube.gltf");
 
 			m_LightCubes[i].m_Transform.translation.x = xPosition;
 			m_LightCubes[i].m_Transform.translation.y = 50.0f;
+			m_LightCubes[i].m_Transform.translation.z = zPosition;
 
 
 			xPosition += 10.0f;

@@ -11,7 +11,6 @@ cbuffer CameraData : register(b0)
 
 struct LightData
 {
-    // lightPosition is float4 due to padding reasons.
 	float ambientStrength;
 	float3 lightColor;
 
@@ -21,7 +20,7 @@ struct LightData
 
 cbuffer LightBuffer : register(b1)
 {
-	LightData lightData[100];
+	LightData lightData[300];
 }
 
 struct PSInput
@@ -33,7 +32,7 @@ struct PSInput
 SamplerState textureSampler : register(s0);
 SamplerState clampTextureSampler : register(s1);
 
-static const int POINT_LIGHT_COUNT = 100;
+static const int POINT_LIGHT_COUNT = 300;
 
 float4 PsMain(PSInput input) : SV_Target
 {
@@ -42,13 +41,13 @@ float4 PsMain(PSInput input) : SV_Target
 	float3 normalValue = normal.Sample(textureSampler, input.texCoord).xyz;
 	float3 specularValue = specular.Sample(textureSampler, input.texCoord).xyz;
 
-	float3 ambient = albedoValue * 0.1f;
+	float3 ambient = albedoValue * 0.0f;
 	float3 viewDir = normalize(cameraPosition - pixelPositionValue);
 
 	float3 diffuse = float3(0.0f, 0.0f, 0.0);
 	for (int i = 0; i < POINT_LIGHT_COUNT; i++)
 	{
-        float attenuation = 5.5f / pow(length(pixelPositionValue - lightData[i].lightDirection), 1);
+        float attenuation = 4.0f / pow(length(pixelPositionValue - lightData[i].lightDirection), 2);
 		float3 lightDirection = normalize(lightData[i].lightDirection - pixelPositionValue);
 		diffuse += (max(dot(normalValue, lightDirection), 0.0f) * albedoValue * lightData[i].lightColor * attenuation);
 	}
