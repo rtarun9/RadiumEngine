@@ -103,17 +103,17 @@ namespace rad
 
 		RenderGameObjects();
 
-		m_LightShader.Bind(m_DeviceContext.Get());
-		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get());
+		//m_LightShader.Bind(m_DeviceContext.Get());
+		//m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get());
 
 		int index = 0;
-		for (auto& lightCubes : m_LightCubes)
-		{
-			lightCubes.m_PerObjectConstantBuffer.BindVS(m_DeviceContext.Get(), 1);
-			m_PointLights[index].m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
-			lightCubes.Draw(m_DeviceContext.Get());
-			index++;
-		}
+		//for (auto& lightCubes : m_LightCubes)
+		//{
+		//	lightCubes.m_PerObjectConstantBuffer.BindVS(m_DeviceContext.Get(), 1);
+		//	m_PointLights[index].m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
+		//	lightCubes.Draw(m_DeviceContext.Get());
+		//	index++;
+		//}
 
 
 		// NOTE : Setting shader resource at slot 4 does cause warnings. This workaround fixes it.
@@ -260,13 +260,14 @@ namespace rad
 
 		float xPosition = -200.0f;
 		float zPosition = 30.0f;
+		float yPosition = 0.50f;
 
 		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
 		{
-			if (i == 100 || i == 200)
+			if (i == 100 || i == 200 || i == 300 || i == 400)
 			{
 				xPosition = -200.0f;
-				zPosition += 10.0f;
+				zPosition += 5.0f;
 			}
 
 
@@ -278,22 +279,26 @@ namespace rad
 			pt.m_LightConstantBuffer.m_Data.lightColor.z = (float)rand() / RAND_MAX;
 
 			pt.m_LightConstantBuffer.m_Data.lightDirection.x = xPosition;
-			pt.m_LightConstantBuffer.m_Data.lightDirection.y = 5.0f;
+			pt.m_LightConstantBuffer.m_Data.lightDirection.y = yPosition;
 			pt.m_LightConstantBuffer.m_Data.lightDirection.z = zPosition;
 
 			m_PointLights[i] = pt;
-			m_LightCubes[i].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Cube/glTF/Cube.gltf");
 
-			m_LightCubes[i].m_Transform.translation.x = xPosition;
-			m_LightCubes[i].m_Transform.translation.y = 50.0f;
-			m_LightCubes[i].m_Transform.translation.z = zPosition;
+			// Due to the scaling bug in Model.cpp, I am currently not rendering any light cubes.
+			// To have a visual representation of the light cubes, some of the code is to be uncommented.
+			// 
+			//m_LightCubes[i].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Cube/glTF/Cube.gltf");
+			//
+			//m_LightCubes[i].m_Transform.translation.x = xPosition;
+			//m_LightCubes[i].m_Transform.translation.y = 50.0f;
+			//m_LightCubes[i].m_Transform.translation.z = zPosition;
 
 
-			xPosition += 10.0f;
+			xPosition += 7.0f;
 		}
 
 
-		m_LightShader.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/LightPixel.hlsl");
+		//m_LightShader.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/LightPixel.hlsl");
 	}
 
 	uint32_t DeferredShading::GetWidth() const
@@ -465,8 +470,8 @@ namespace rad
 		{
 			m_PointLights[i].UpdateData();
 			m_PointLights[i].Update(m_DeviceContext.Get());
-			m_LightCubes[i].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
-			m_LightCubes[i].UpdateTransformComponent(m_DeviceContext.Get());
+			//m_LightCubes[i].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
+			//m_LightCubes[i].UpdateTransformComponent(m_DeviceContext.Get());
 		}
 	}
 

@@ -66,7 +66,7 @@ namespace rad
 		// To be != 1 only when Guassian blur is implemented.
 		static constexpr uint32_t BLUR_PASSES = 1;
 
-		static constexpr uint32_t NUMBER_OF_POINT_LIGHTS = 300;
+		static constexpr uint32_t NUMBER_OF_POINT_LIGHTS = 500;
 
 		// Viewport and window variables.
 		uint32_t m_Width;

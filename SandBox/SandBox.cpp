@@ -198,6 +198,10 @@ namespace rad
 
 		m_BlurRT.Init(m_Device.Get(), m_Width / 4, m_Height / 4);
 
+		m_FXAART.Init(m_Device.Get(), m_Width, m_Height);
+
+		m_FXAAShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/FXAAVertex.hlsl", L"../Shaders/FXAAPixel.hlsl");
+
 
 		int previousPassWidth = m_Width;
 		int previousPassHeight = m_Height;
@@ -592,7 +596,6 @@ namespace rad
 
 		m_PostProcessRT.Update(m_DeviceContext.Get());
 
-
 		// Pass the offscreen RT and bloom RT. In future this will be done in another render pass (Post Process pass).
 		ID3D11ShaderResourceView* srvs[] = 
 		{
@@ -605,14 +608,25 @@ namespace rad
 
 		m_PostProcessRT.Draw(m_DeviceContext.Get());
 
-		// Final pass.
-		m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+		// FXAA Pass.
+		m_FXAAShaderModule.Bind(m_DeviceContext.Get());
 		
+		m_DeviceContext->OMSetRenderTargets(1, m_FXAART.m_RTV.GetAddressOf(), nullptr);
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 0u);
+
+		m_DeviceContext->PSSetShaderResources(0, 1, m_PostProcessRT.m_SRV.GetAddressOf());
+		m_WrapSampler.Bind(m_DeviceContext.Get());
+
+		m_DeviceContext->DrawIndexed(6, 0, 0);
+
+		// Render to the swap chains back buffer RT after applying the FXAA filter.
+		m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+
 		m_DeviceContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 0u);
 
 
-		m_DeviceContext->PSSetShaderResources(0, 1, m_PostProcessRT.m_SRV.GetAddressOf());
+		m_DeviceContext->PSSetShaderResources(0, 1, m_FXAART.m_SRV.GetAddressOf());
 		m_ClampSampler.Bind(m_DeviceContext.Get());
 
 		m_DeviceContext->DrawIndexed(6, 0, 0);

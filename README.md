@@ -12,6 +12,7 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 * Deferred shading
 * Normal mapping
 * HDR lighting and tone mapping
+* FXAA
 * Simple UI to configure shader parameters and preview output of various Render Passes.
 
 # Showcase
@@ -24,7 +25,8 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 ![](Assets/Screenshots/RadiumEngine-DiffuseIBLTest.png)
 
 > Deferred Shading
-![](Assets/Screenshots/RadiumEngine-DeferredShading-2.png) 
+![](Assets/Screenshots/RadiumEngine-DeferredShading-1.png) 
+![](Assets/Screenshots/RadiumEngine-DeferredShading.png)
 
 
 # Dependencies used

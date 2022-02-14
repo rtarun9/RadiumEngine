@@ -18,9 +18,12 @@ struct LightData
 	float3 lightDirection;
 };
 
+
+static const int POINT_LIGHT_COUNT = 500;
+
 cbuffer LightBuffer : register(b1)
 {
-	LightData lightData[300];
+    LightData lightData[POINT_LIGHT_COUNT];
 }
 
 struct PSInput
@@ -32,8 +35,6 @@ struct PSInput
 SamplerState textureSampler : register(s0);
 SamplerState clampTextureSampler : register(s1);
 
-static const int POINT_LIGHT_COUNT = 300;
-
 float4 PsMain(PSInput input) : SV_Target
 {
 	float3 pixelPositionValue = position.Sample(textureSampler, input.texCoord).xyz;
@@ -41,16 +42,16 @@ float4 PsMain(PSInput input) : SV_Target
 	float3 normalValue = normal.Sample(textureSampler, input.texCoord).xyz;
 	float3 specularValue = specular.Sample(textureSampler, input.texCoord).xyz;
 
-	float3 ambient = albedoValue * 0.0f;
+	float3 ambient = albedoValue * 0.1f;
 	float3 viewDir = normalize(cameraPosition - pixelPositionValue);
 
 	float3 diffuse = float3(0.0f, 0.0f, 0.0);
 	for (int i = 0; i < POINT_LIGHT_COUNT; i++)
 	{
-        float attenuation = 4.0f / pow(length(pixelPositionValue - lightData[i].lightDirection), 2);
+        float attenuation = 1.0f / pow(length(pixelPositionValue - lightData[i].lightDirection), 2);
 		float3 lightDirection = normalize(lightData[i].lightDirection - pixelPositionValue);
-		diffuse += (max(dot(normalValue, lightDirection), 0.0f) * albedoValue * lightData[i].lightColor * attenuation);
-	}
+        diffuse += (max(dot(normalValue, lightDirection), 0.0f) * albedoValue * lightData[i].lightColor * attenuation * lightData[i].lightStrength);
+    }
 
 	return float4(diffuse + ambient, 1.0f);
 }

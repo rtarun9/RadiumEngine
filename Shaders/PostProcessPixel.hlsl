@@ -15,6 +15,7 @@ Texture2D bloomTexture : register(t1);
 
 SamplerState textureSampler : register(s0);
 
+
 float4 PsMain(PSInput input) : SV_Target
 {
 
@@ -38,6 +39,7 @@ float4 PsMain(PSInput input) : SV_Target
     
     float3 hdrColor = renderTexture.Sample(textureSampler, input.texCoord).xyz + bloomPixelColor;
 
+    // Tone mapping calculations : 
     float3 mappedColor = float3(1.0f, 1.0f, 1.0f) - exp(-hdrColor * exposure);
     mappedColor = pow(mappedColor, GAMMA_CORRECTION);
 

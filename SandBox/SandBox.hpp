@@ -109,6 +109,8 @@ namespace rad
 		ShaderModule m_PostProcessShaderModule{};
 		ShaderModule m_SkyBoxShaderModule{};
 
+		ShaderModule m_FXAAShaderModule{};
+
 		std::unordered_map<std::wstring, Model> m_GameObjects;
 		Model m_SkyBoxModel;
 		SkyBox m_SkyBox;
@@ -120,6 +122,8 @@ namespace rad
 		RenderTarget m_BloomPreFilterRT;
 		RenderTarget m_BloomPassRTs[BLOOM_PASSES];
 		RenderTarget m_BlurRT;
+
+		RenderTarget m_FXAART;
 
 		TextureSampler m_WrapSampler;
 		TextureSampler m_ClampSampler;
