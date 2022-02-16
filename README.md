@@ -23,12 +23,19 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 ![](Assets/Screenshots/RadiumEngine-Bloom1.png)
 ![](Assets/Screenshots/RadiumEngine-Bloom2.png)
 
+>Bloom
+![](Assets/Screenshots/RadiumEngine-Bloom3.png)
+
 > PBR and Diffuse IBL
 ![](Assets/Screenshots/RadiumEngine-DiffuseIBLTest.png)
 
 > Deferred Shading
 ![](Assets/Screenshots/RadiumEngine-DeferredShading-1.png) 
 ![](Assets/Screenshots/RadiumEngine-DeferredShading.png)
+
+> FXAA 
+> Without FXAA (Left) | With FXAA (Right)
+> ![](Assets/Screenshots/FXAAEffect.png)
 
 
 # Dependencies used
