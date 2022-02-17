@@ -1,26 +1,32 @@
 #include "Pch.hpp"
 
-#include "DeferredShading.hpp"
+#include "SSAOTest.hpp"
 #include "Core/Application.hpp"
+
+#include <random>
 
 namespace rad
 {
+	static float lerp(float a, float b, float t)
+	{
+		return a + t * (b - a);
+	}
 
-	DeferredShading::DeferredShading(std::wstring_view title, uint32_t width, uint32_t height)
+	SSAOTest::SSAOTest(std::wstring_view title, uint32_t width, uint32_t height)
 		: m_Title(title), m_Width(width), m_Height(height), EngineBase(title, width, height)
 	{
 
 		m_AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 	}
 
-	void DeferredShading::OnInit()
+	void SSAOTest::OnInit()
 	{
 		InitRendererCore();
 
 		LoadContent();
 	}
 
-	void DeferredShading::OnUpdate(float deltaTime)
+	void SSAOTest::OnUpdate(float deltaTime)
 	{
 		m_Camera.Update(deltaTime);
 
@@ -32,8 +38,6 @@ namespace rad
 
 		m_DirectionalLight.Update(m_DeviceContext.Get());
 
-
-
 		m_PostProcessRT.Update(m_DeviceContext.Get());
 		m_BloomPreFilterRT.Update(m_DeviceContext.Get());
 
@@ -42,9 +46,16 @@ namespace rad
 		m_CameraConstantBuffer.m_Data.cameraPosition = dx::XMFLOAT3{ cameraPosition.x, cameraPosition.y, cameraPosition.z };
 
 		m_CameraConstantBuffer.Update(m_DeviceContext.Get());
+		
+		m_VPConstantBuffer.m_Data.inverseTransposeVPMatrix = dx::XMMatrixInverse(nullptr, dx::XMMatrixTranspose(m_GameObjects[L"Sponza"].m_PerObjectConstantBuffer.m_Data.modelMatrix * m_Camera.m_ViewMatrix));
+		m_VPConstantBuffer.Update(m_DeviceContext.Get());
+
+		m_SSAOData.m_Data.projectionMatrix = m_PerFrameConstantBuffer.m_Data.projectionMatrix;
+
+		m_SSAOData.Update(m_DeviceContext.Get(), m_SSAOData.m_Data);
 	}
 
-	void DeferredShading::OnRender()
+	void SSAOTest::OnRender()
 	{
 		m_UIManager.FrameBegin();
 
@@ -60,10 +71,8 @@ namespace rad
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
-
 		// Setup for shadow pass
 		ShadowRenderPass();
-
 
 		// Setup for Main render pass (for objects)
 		m_DeviceContext->OMSetRenderTargets(1u, m_OffscreenRT.m_RTV.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
@@ -75,15 +84,22 @@ namespace rad
 		// As shadow map is modifying viewport this is necessary,
 		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
-		// Do pass for Deferred shading
+		// Do pass for Geometry Pass
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 
-		DeferredPass();
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+
+		GeometryPass();
+		
+		m_DeviceContext->OMSetRenderTargets(0u, nullptr, nullptr);
+
+		SSAOPass();
+
+		m_DeviceContext->RSSetViewports(1u, &m_Viewport);
 
 		// Setup for Main render pass (for objects)
 		m_DeviceContext->OMSetRenderTargets(1u, m_OffscreenRT.m_RTV.GetAddressOf(), m_DepthStencil.m_DepthStencilView.Get());
 
-		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 		m_WrapSampler.Bind(m_DeviceContext.Get());
 		m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
 
@@ -95,34 +111,29 @@ namespace rad
 
 		m_DeviceContext->PSSetConstantBuffers(1, 1, m_CameraConstantBuffer.GetBuffer().GetAddressOf());
 
+		ID3D11ShaderResourceView* const nullSRVs[2] = 
+		{ 
+			nullptr,
+			nullptr
+		};
+
 		wrl::ComPtr<ID3D11ShaderResourceView> depthMapShaderResourceView = m_ShadowDepthMap.ConvertToSRV(m_Device.Get(), m_DeviceContext.Get());
-		m_DeviceContext->PSSetShaderResources(4, 1, depthMapShaderResourceView.GetAddressOf());
+		
+		ID3D11ShaderResourceView* srvs[] =
+		{
+			depthMapShaderResourceView.Get(),
+			m_SsaoRT.m_SRV.Get()
+		};
+
+		m_DeviceContext->PSSetShaderResources(4, 2, nullSRVs);
+		m_DeviceContext->PSSetShaderResources(4, 2, srvs);
 
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 		m_DeviceContext->RSSetState(m_RasterizerState.Get());
 
 		RenderGameObjects();
 
-		//m_LightShader.Bind(m_DeviceContext.Get());
-		//m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get());
-
-		int index = 0;
-		//for (auto& lightCubes : m_LightCubes)
-		//{
-		//	lightCubes.m_PerObjectConstantBuffer.BindVS(m_DeviceContext.Get(), 1);
-		//	m_PointLights[index].m_LightConstantBuffer.BindPS(m_DeviceContext.Get());
-		//	lightCubes.Draw(m_DeviceContext.Get());
-		//	index++;
-		//}
-
-
-		// NOTE : Setting shader resource at slot 4 does cause warnings. This workaround fixes it.
-		ID3D11ShaderResourceView* nullSRVs[] =
-		{
-			nullptr
-		};
-
-		m_DeviceContext->PSSetShaderResources(4, 1, nullSRVs);
+		m_DeviceContext->PSSetShaderResources(4, 2, nullSRVs);
 
 		// Apply Bloom
 		BloomPass();
@@ -138,12 +149,13 @@ namespace rad
 		m_UIManager.DisplayRenderTarget(L"Offscreen RT", m_OffscreenRT.m_SRV.Get());
 		m_UIManager.DisplayRenderTarget(L"Bloom Prefilter RT", m_BloomPreFilterRT.m_SRV.Get());
 
-		m_UIManager.DisplayRenderTarget(L"Albedo Deferred pass", m_DeferredPassData.m_AlbedoRT.m_SRV.Get());
-		m_UIManager.DisplayRenderTarget(L"Position Deferred pass", m_DeferredPassData.m_PositionRT.m_SRV.Get());
-		m_UIManager.DisplayRenderTarget(L"Normal Deferred pass", m_DeferredPassData.m_NormalRT.m_SRV.Get());
-		m_UIManager.DisplayRenderTarget(L"Specular Deferred pass", m_DeferredPassData.m_SpecularRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Albedo Geometry pass", m_GeometryPassData.m_AlbedoRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Position Geometry pass", m_GeometryPassData.m_PositionRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Normal Geometry pass", m_GeometryPassData.m_NormalRT.m_SRV.Get());
 
-		m_UIManager.DisplayRenderTarget(L"Deferred Pass", m_DeferredPassData.m_DeferredLightRT.m_SRV.Get());
+		m_UIManager.DisplayRenderTarget(L"Noise texture", m_NoiseSRV.Get());
+
+		m_UIManager.DisplayRenderTarget(L"SSAO Pass", m_SsaoRT.m_SRV.Get());
 
 		m_UIManager.Render();
 
@@ -153,7 +165,7 @@ namespace rad
 		LogErrors();
 	}
 
-	void DeferredShading::OnDestroy()
+	void SSAOTest::OnDestroy()
 	{
 		m_DeviceContext->ClearState();
 		m_DeviceContext->Flush();
@@ -161,7 +173,7 @@ namespace rad
 		m_UIManager.Close();
 	}
 
-	void DeferredShading::OnKeyDown(uint32_t keycode)
+	void SSAOTest::OnKeyDown(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, true);
 
@@ -171,7 +183,7 @@ namespace rad
 		}
 	}
 
-	void DeferredShading::OnKeyUp(uint32_t keycode)
+	void SSAOTest::OnKeyUp(uint32_t keycode)
 	{
 		m_Camera.HandleInput(keycode, false);
 
@@ -181,7 +193,7 @@ namespace rad
 		}
 	}
 
-	void DeferredShading::LoadContent()
+	void SSAOTest::LoadContent()
 	{
 		m_UIManager.Init(m_Device.Get(), m_DeviceContext.Get(), m_Width, m_Height);
 
@@ -201,7 +213,7 @@ namespace rad
 		// setup up for the blur shaders.
 		m_BlurShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/Bloom/BlurVertex.hlsl", L"../Shaders/Bloom/BlurPixel.hlsl");
 
-		m_PostProcessShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/PostProcessVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPostProcessPixel.hlsl");
+		m_PostProcessShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/PostProcessVertex.hlsl", L"../Shaders/SSAO/SSAOPostProcessPixel.hlsl");
 
 		// Setup for samplers.
 		m_WrapSampler.Init(m_Device.Get(), D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP);
@@ -210,7 +222,7 @@ namespace rad
 		// Setup constant buffers
 		m_PerFrameConstantBuffer.Init(m_Device.Get());
 		m_PerFrameConstantBuffer.m_Data.projectionMatrix = dx::XMMatrixPerspectiveFovLH(dx::XMConvertToRadians(45.0f), m_AspectRatio, 0.1f, 10000.0f);
-		
+
 		// Setup for game objects
 		m_GameObjects[L"Sponza"].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Sponza/glTF/Sponza.gltf");
 		m_GameObjects[L"Sponza"].m_Transform.scale = dx::XMFLOAT3(0.1f, 0.1f, 0.1f);
@@ -224,6 +236,9 @@ namespace rad
 		m_BloomPreFilterRT.Init(m_Device.Get(), m_Width, m_Height);
 
 		m_BlurRT.Init(m_Device.Get(), m_Width / 4, m_Height / 4);
+
+		m_DeferredRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_DeferredShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/RenderTargetVertex.hlsl", L"../Shaders/SSAO/SSAOTestPixel.hlsl");
 
 
 		int previousPassWidth = m_Width;
@@ -243,80 +258,122 @@ namespace rad
 
 		m_CameraConstantBuffer.Init(m_Device.Get());
 
-		m_DeferredPassData.m_DeferredLightRT.Init(m_Device.Get(), m_Width, m_Height);
-		m_DeferredPassData.m_PositionRT.Init(m_Device.Get(), m_Width, m_Height);
-		m_DeferredPassData.m_AlbedoRT.Init(m_Device.Get(), m_Width, m_Height);
-		m_DeferredPassData.m_NormalRT.Init(m_Device.Get(), m_Width, m_Height);
-		m_DeferredPassData.m_SpecularRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_VPConstantBuffer.Init(m_Device.Get());
 
-		m_DeferredPassData.m_DeferredModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPixel.hlsl");
+		m_GeometryPassData.m_PositionRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_GeometryPassData.m_AlbedoRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_GeometryPassData.m_NormalRT.Init(m_Device.Get(), m_Width, m_Height);
+
+		m_GeometryPassData.m_GeometryModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/SSAO/GeometryPassVertex.hlsl", L"../Shaders/SSAO/GeometryPassPixel.hlsl");
+
+		m_GeometryPassData.m_DepthStencil.Init(m_Device.Get(), m_Width, m_Height, DSType::DepthStencil);
+
+		m_SSAOData.Init(m_Device.Get());
 		
-		m_DeferredPassData.m_DepthStencil.Init(m_Device.Get(), m_Width, m_Height, DSType::DepthStencil);
+		// For SSAO kernel generation.
+		std::uniform_real_distribution<float> randomFloats(0.0f, 1.0f);
 
-		m_DeferredPassData.m_LightModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/RenderTargetVertex.hlsl", L"../Shaders/DeferredLighting/DeferredLightingPixel.hlsl");
+		std::default_random_engine randomGenerator;
 
-
-		srand((unsigned)time(NULL));
-
-		float xPosition = -200.0f;
-		float zPosition = 30.0f;
-		float yPosition = 0.50f;
-
-		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
+		for (uint32_t i = 0; i < SSAO_SAMPLE_KERNEL_COUNT; i++)
 		{
-			if (i == 100 || i == 200 || i == 300 || i == 400)
-			{
-				xPosition = -200.0f;
-				zPosition += 5.0f;
-			}
+			// The samples are in range [-1, 1], [-1, 1], [0, 1] and are in tangent space.
+			dx::XMFLOAT3 sample{};
+			sample.x = randomFloats(randomGenerator) * 2.0f - 1.0f;
+			sample.y = randomFloats(randomGenerator) * 2.0f - 1.0f;
+			sample.z = randomFloats(randomGenerator);
 
+			float length = std::sqrt(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z);
+			sample.x = sample.x / length;
+			sample.y = sample.y / length;
+			sample.z = sample.z / length;
 
-			PointLight pt{};
+			// They are then scaled randomly by a factor of [0, 1].
+			sample.x = sample.x * randomFloats(randomGenerator);
+			sample.y = sample.y * randomFloats(randomGenerator);
+			sample.z = sample.z * randomFloats(randomGenerator);
 
-			pt.Init(m_Device.Get());
-			pt.m_LightConstantBuffer.m_Data.lightColor.x = (float)rand() / RAND_MAX;
-			pt.m_LightConstantBuffer.m_Data.lightColor.y = (float)rand() / RAND_MAX;
-			pt.m_LightConstantBuffer.m_Data.lightColor.z = (float)rand() / RAND_MAX;
+			// It is better to have more samples closer to the origin (close to the actual fragment, assumed to be at the origin).
+			float scale = (float)i / SSAO_SAMPLE_KERNEL_COUNT;
+			scale = lerp(0.1f, 1.0f, scale * scale);
 
-			pt.m_LightConstantBuffer.m_Data.lightDirection.x = xPosition;
-			pt.m_LightConstantBuffer.m_Data.lightDirection.y = yPosition;
-			pt.m_LightConstantBuffer.m_Data.lightDirection.z = zPosition;
+			sample.x = sample.x * scale;
+			sample.y = sample.y * scale;
+			sample.z = sample.z * scale;
 
-			m_PointLights[i] = pt;
-
-			// Due to the scaling bug in Model.cpp, I am currently not rendering any light cubes.
-			// To have a visual representation of the light cubes, some of the code is to be uncommented.
-			// 
-			//m_LightCubes[i].Init(m_Device.Get(), m_DeviceContext.Get(), L"../Assets/Models/Cube/glTF/Cube.gltf");
-			//
-			//m_LightCubes[i].m_Transform.translation.x = xPosition;
-			//m_LightCubes[i].m_Transform.translation.y = 50.0f;
-			//m_LightCubes[i].m_Transform.translation.z = zPosition;
-
-
-			xPosition += 7.0f;
+			m_SSAOData.m_Data.samples[i] = dx::XMFLOAT4(sample.x, sample.y, sample.z, 0.0f);
 		}
 
+		// Vector of rangom rotation vectors that will be applied over all the fragments (in tangent space).
+		// The rotations happen about the z axis in tangent space.
+		m_SSAONoise.reserve(SSAO_NOISE_TEXTURE_DIMENSION * SSAO_NOISE_TEXTURE_DIMENSION);
 
-		//m_LightShader.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/TestVertex.hlsl", L"../Shaders/LightPixel.hlsl");
+		for (uint32_t i = 0; i < SSAO_NOISE_TEXTURE_DIMENSION * SSAO_NOISE_TEXTURE_DIMENSION; i++)
+		{
+			dx::XMFLOAT3 noise{};
+			noise.x = randomFloats(randomGenerator) * 2.0f - 1.0f;
+			noise.y = randomFloats(randomGenerator) * 2.0f - 1.0f;
+			noise.z = 0.0f;
+
+			m_SSAONoise.push_back(std::move(noise));
+		}
+
+		// Create texture with data of the noise
+		D3D11_TEXTURE2D_DESC textureDesc = {};
+		textureDesc.Width = SSAO_NOISE_TEXTURE_DIMENSION;
+		textureDesc.Height = SSAO_NOISE_TEXTURE_DIMENSION;
+		textureDesc.MipLevels = 1;
+		textureDesc.ArraySize = 1;
+
+		textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+		float textureBytesPerRow = (SSAO_NOISE_TEXTURE_DIMENSION) * 4;
+	
+		D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
+		textureSubresourceData.pSysMem = m_SSAONoise.data();
+		textureSubresourceData.SysMemPitch = textureBytesPerRow;
+		textureSubresourceData.SysMemSlicePitch = 0;
+
+		// Create texture view
+		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+		shaderResourceViewDesc.Format = textureDesc.Format;
+		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		shaderResourceViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+
+		ThrowIfFailed(m_Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &m_NoiseTexture));
+
+		ThrowIfFailed(m_Device->CreateShaderResourceView(m_NoiseTexture.Get(), &shaderResourceViewDesc, &m_NoiseSRV));
+
+		m_SsaoRT.Init(m_Device.Get(), m_Width, m_Height);
+		m_SSAODepthStencil.Init(m_Device.Get(), m_Width, m_Height, DSType::DepthStencil);
+
+		m_SSAOShaderModule.Init(m_Device.Get(), InputLayoutType::RenderTargetInput, L"../Shaders/RenderTargetVertex.hlsl", L"../Shaders/SSAO/SSAOPixel.hlsl");
+
+		RAD_CORE_INFO("Loaded contents");
 	}
 
-	uint32_t DeferredShading::GetWidth() const
+	uint32_t SSAOTest::GetWidth() const
 	{
 		return m_Width;
 	}
 
-	uint32_t DeferredShading::GetHeight() const
+	uint32_t SSAOTest::GetHeight() const
 	{
 		return m_Height;
 	}
 
-	std::wstring DeferredShading::GetTitle() const
+	std::wstring SSAOTest::GetTitle() const
 	{
 		return m_Title;
 	}
 
-	void DeferredShading::InitRendererCore()
+	void SSAOTest::InitRendererCore()
 	{
 		m_Log.Init();
 
@@ -438,7 +495,7 @@ namespace rad
 		RAD_CORE_INFO("Initialized renderer core");
 	}
 
-	void DeferredShading::UpdateGameObjects()
+	void SSAOTest::UpdateGameObjects()
 	{
 		ImGui::Begin("Scene Graph");
 		for (auto& gameObjects : m_GameObjects)
@@ -462,20 +519,12 @@ namespace rad
 		ImGui::End();
 	}
 
-	void DeferredShading::UpdateLights()
+	void SSAOTest::UpdateLights()
 	{
 		m_DirectionalLight.UpdateData();
-
-		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
-		{
-			m_PointLights[i].UpdateData();
-			m_PointLights[i].Update(m_DeviceContext.Get());
-			//m_LightCubes[i].m_Transform.translation = m_PointLights[i].m_LightConstantBuffer.m_Data.lightDirection;
-			//m_LightCubes[i].UpdateTransformComponent(m_DeviceContext.Get());
-		}
 	}
 
-	void DeferredShading::RenderGameObjects()
+	void SSAOTest::RenderGameObjects()
 	{
 		for (auto& gameObject : m_GameObjects)
 		{
@@ -487,7 +536,7 @@ namespace rad
 		}
 	}
 
-	void DeferredShading::ShadowRenderPass()
+	void SSAOTest::ShadowRenderPass()
 	{
 		m_ShadowShaderModule.Bind(m_DeviceContext.Get());
 		m_DirectionalLight.m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
@@ -513,44 +562,119 @@ namespace rad
 		RenderGameObjects();
 	}
 
-	void DeferredShading::DeferredPass()
+	void SSAOTest::GeometryPass()
 	{
-		// Various passes to processes
-		// m_DeferredPassData.m_AlbedoModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredAlbedoPixel.hlsl");
-		// m_DeferredPassData.m_NormalModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredNormalPixel.hlsl");
-		// m_DeferredPassData.m_PositionModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredPositionPixel.hlsl");
-		// m_DeferredPassData.m_SpecularModule.Init(m_Device.Get(), InputLayoutType::DefaultInput, L"../Shaders/DeferredLighting/DeferredVertex.hlsl", L"../Shaders/DeferredLighting/DeferredSpecularPixel.hlsl");
-
-		m_DeferredPassData.m_DeferredModule.Bind(m_DeviceContext.Get());
+		m_GeometryPassData.m_GeometryModule.Bind(m_DeviceContext.Get());
 
 		m_PerFrameConstantBuffer.BindVS(m_DeviceContext.Get(), ConstantBuffers::CB_Frame);
+
+		m_VPConstantBuffer.BindVS(m_DeviceContext.Get(), 2);
 
 		m_WrapSampler.Bind(m_DeviceContext.Get());
 		m_ClampSampler.Bind(m_DeviceContext.Get(), 1);
 
-
 		static float clearRTVColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_AlbedoRT.m_RTV.Get(), clearRTVColor);
-		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_NormalRT.m_RTV.Get(), clearRTVColor);
-		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_PositionRT.m_RTV.Get(), clearRTVColor);
-		m_DeviceContext->ClearRenderTargetView(m_DeferredPassData.m_SpecularRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_GeometryPassData.m_AlbedoRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_GeometryPassData.m_NormalRT.m_RTV.Get(), clearRTVColor);
+		m_DeviceContext->ClearRenderTargetView(m_GeometryPassData.m_PositionRT.m_RTV.Get(), clearRTVColor);
 
-		ID3D11RenderTargetView* mrt[4] =
+		ID3D11RenderTargetView* mrt[3] =
 		{
-			m_DeferredPassData.m_AlbedoRT.m_RTV.Get(),
-			m_DeferredPassData.m_NormalRT.m_RTV.Get(),
-			m_DeferredPassData.m_PositionRT.m_RTV.Get(),
-			m_DeferredPassData.m_SpecularRT.m_RTV.Get()
+			m_GeometryPassData.m_AlbedoRT.m_RTV.Get(),
+			m_GeometryPassData.m_NormalRT.m_RTV.Get(),
+			m_GeometryPassData.m_PositionRT.m_RTV.Get(),
 		};
 
-		m_DeviceContext->OMSetRenderTargets(4u, mrt, m_DeferredPassData.m_DepthStencil.m_DepthStencilView.Get());
+		m_DeviceContext->OMSetRenderTargets(3u, mrt, m_GeometryPassData.m_DepthStencil.m_DepthStencilView.Get());
 		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 
 		RenderGameObjects();
 	}
 
-	void DeferredShading::BloomPass()
+	void SSAOTest::SSAOPass()
+	{
+		m_SSAOShaderModule.Bind(m_DeviceContext.Get());
+		m_WrapSampler.Bind(m_DeviceContext.Get());
+
+		static float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		
+		m_DeviceContext->ClearRenderTargetView(m_SsaoRT.m_RTV.Get(), clearColor);
+
+		m_SsaoRT.Bind(m_DeviceContext.Get());
+		m_DeviceContext->OMSetDepthStencilState(m_DepthStencilState.Get(), 1u);
+
+		ID3D11ShaderResourceView* srv[3] =
+		{
+			m_GeometryPassData.m_PositionRT.m_SRV.Get(),
+			m_GeometryPassData.m_NormalRT.m_SRV.Get(),
+			m_NoiseSRV.Get()
+		};
+
+		m_DeviceContext->PSSetShaderResources(0, 3, srv);
+
+		m_SSAOData.BindPS(m_DeviceContext.Get(), 0, 1);
+		
+		m_SsaoRT.Draw(m_DeviceContext.Get());
+
+		// Blur the SSAO RT
+
+		for (int i = 0; i < 4; i++)
+		{
+			m_BlurShaderModule.Bind(m_DeviceContext.Get());
+			m_BlurRT.Bind(m_DeviceContext.Get());
+
+			m_DeviceContext->PSSetShaderResources(0, 1, m_SsaoRT.m_SRV.GetAddressOf());
+			m_BlurRT.Draw(m_DeviceContext.Get());
+
+			ID3D11ShaderResourceView* nullSrv[1] =
+			{
+				nullptr
+			};
+
+			m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+
+			m_RenderTargetShaderModule.Bind(m_DeviceContext.Get());
+
+			m_SsaoRT.Bind(m_DeviceContext.Get());
+
+			m_DeviceContext->PSSetShaderResources(0, 1, m_BlurRT.m_SRV.GetAddressOf());
+			m_ClampSampler.Bind(m_DeviceContext.Get());
+
+			m_SsaoRT.Draw(m_DeviceContext.Get());
+
+			
+
+			m_DeviceContext->PSSetShaderResources(0, 1, nullSrv);
+
+		}
+
+		// Render onto the deferred RT.
+
+		m_DeferredShaderModule.Bind(m_DeviceContext.Get());
+		//Texture2D albedo : register(t0);
+		//Texture2D normal : register(t1);
+		//Texture2D position : register(t2);
+		//Texture2D ssaoTexture : register(t3);
+
+		m_DirectionalLight.m_LightConstantBuffer.BindPS(m_DeviceContext.Get(), 1, 1);
+		m_DeferredRT.Bind(m_DeviceContext.Get());
+
+		ID3D11ShaderResourceView* deferredSrvs[] =
+		{
+			m_GeometryPassData.m_AlbedoRT.m_SRV.Get(),
+			m_GeometryPassData.m_NormalRT.m_SRV.Get(),
+			m_GeometryPassData.m_PositionRT.m_SRV.Get(),
+			m_SsaoRT.m_SRV.Get()
+		};
+
+
+		m_DeviceContext->PSSetShaderResources(0, 4, deferredSrvs);
+
+		m_DeferredRT.Draw(m_DeviceContext.Get());
+	}
+
+	void SSAOTest::BloomPass()
 	{
 		// Blur the offscreen RT before passing to bloom prefilter
 		RenderTarget blurredOffscreenRTV = m_OffscreenRT;
@@ -684,51 +808,8 @@ namespace rad
 		}
 	}
 
-	void DeferredShading::RenderPass()
+	void SSAOTest::RenderPass()
 	{
-		m_DeviceContext->OMSetRenderTargets(1, m_DeferredPassData.m_DeferredLightRT.m_RTV.GetAddressOf(), nullptr);
-		m_DeviceContext->RSSetViewports(1, &m_Viewport);
-		m_DeferredPassData.m_LightModule.Bind(m_DeviceContext.Get());
-		m_ClampSampler.Bind(m_DeviceContext.Get());
-
-		ID3D11ShaderResourceView* mrt[4] =
-		{
-			m_DeferredPassData.m_AlbedoRT.m_SRV.Get(),
-			m_DeferredPassData.m_NormalRT.m_SRV.Get(),
-			m_DeferredPassData.m_PositionRT.m_SRV.Get(),
-			m_DeferredPassData.m_SpecularRT.m_SRV.Get()
-		};
-
-		m_DeviceContext->PSSetShaderResources(0, 4, mrt);
-
-		m_CameraConstantBuffer.BindPS(m_DeviceContext.Get());
-
-		LightData lightBuffer[NUMBER_OF_POINT_LIGHTS] = {};
-
-		wrl::ComPtr<ID3D11Buffer> deferredLightDataBuffer;
-
-		D3D11_BUFFER_DESC constantBufferDesc = {};
-		constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-		constantBufferDesc.CPUAccessFlags = 0;
-		constantBufferDesc.ByteWidth = sizeof(lightBuffer);
-		constantBufferDesc.MiscFlags = 0;
-
-
-		ThrowIfFailed(m_Device->CreateBuffer(&constantBufferDesc, nullptr, &deferredLightDataBuffer));
-		
-
-		for (int i = 0; i < NUMBER_OF_POINT_LIGHTS; i++)
-		{
-			lightBuffer[i] = m_PointLights[i].m_LightConstantBuffer.m_Data;
-		}
-
-		m_DeviceContext->UpdateSubresource(deferredLightDataBuffer.Get(), 0, nullptr, lightBuffer, 0, 0);
-
-		m_DeviceContext->PSSetConstantBuffers(1, 1, deferredLightDataBuffer.GetAddressOf());
-
-		m_DeviceContext->DrawIndexed(6, 0, 0);
-
 		m_PostProcessShaderModule.Bind(m_DeviceContext.Get());
 
 		m_PostProcessRT.Bind(m_DeviceContext.Get());
@@ -746,13 +827,11 @@ namespace rad
 		{
 			 m_OffscreenRT.m_SRV.Get(),
 			 m_BloomPassRTs[0].m_SRV.Get(),
-			 m_DeferredPassData.m_DeferredLightRT.m_SRV.Get()
+			 m_DeferredRT.m_SRV.Get()
 		};
 
 		m_DeviceContext->PSSetShaderResources(0, 3, srvs);
 		m_ClampSampler.Bind(m_DeviceContext.Get());
-
-		m_PostProcessRT.Draw(m_DeviceContext.Get());
 
 		m_DeviceContext->DrawIndexed(6, 0, 0);
 
@@ -764,12 +843,13 @@ namespace rad
 
 
 		m_DeviceContext->PSSetShaderResources(0, 1, m_PostProcessRT.m_SRV.GetAddressOf());
+
 		m_ClampSampler.Bind(m_DeviceContext.Get());
 
 		m_DeviceContext->DrawIndexed(6, 0, 0);
 	}
 
-	void DeferredShading::Clear()
+	void SSAOTest::Clear()
 	{
 		// WARNING : This static should technically not be a problem, but find a alternative method for this regardless.
 		// Current problem : Clear Color keeps getting set to 0, 0, 0, 0 as it is a local variable, but making it static prevents this.
@@ -785,15 +865,16 @@ namespace rad
 
 		m_DepthStencil.Clear(m_DeviceContext.Get());
 
-		m_DeferredPassData.m_DepthStencil.Clear(m_DeviceContext.Get());
+		m_GeometryPassData.m_DepthStencil.Clear(m_DeviceContext.Get());
+		m_SSAODepthStencil.Clear(m_DeviceContext.Get());
 	}
 
-	void DeferredShading::Present()
+	void SSAOTest::Present()
 	{
 		m_SwapChain->Present(1, 0);
 	}
 
-	void DeferredShading::LogErrors()
+	void SSAOTest::LogErrors()
 	{
 #ifdef _DEBUG
 		UINT64 messageCount = m_InfoQueue->GetNumStoredMessages();

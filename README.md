@@ -11,10 +11,11 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 * Bloom (Using repeated up / down sampling technique)
 * Deferred shading
 * Normal mapping
+* FXAA
+* SSAO
 * HDR lighting and tone mapping
 * Point and directional lights
 * Logging system (Using spdlog)
-* FXAA
 * Simple UI to configure shader parameters and preview output of various Render Passes.
 
 # Showcase
@@ -33,14 +34,18 @@ Made for learning and implementing modern graphics techniques in a quick and eas
 ![](Assets/Screenshots/RadiumEngine-DeferredShading-1.png) 
 ![](Assets/Screenshots/RadiumEngine-DeferredShading.png)
 
-> FXAA 
-> Without FXAA (Left) | With FXAA (Right)
-> ![](Assets/Screenshots/FXAAEffect.png)
+> FXAA (Applied on right half)
+> ![](Assets/Screenshots/RadiumEngine-FXAAEffect.png)
+
+> SSAO (Applied on left half)
+> ![](Assets/Screenshots/RadiumEngine-SSAO-1.png)
+> ![](Assets/Screenshots/RadiumEngine-SSAO-2.png)
 
 
 # Dependencies used
 
-* STB Image 
-* Assimp
-* ImGUI
-* Spdlog
+* [stb-image](https://github.com/nothings/stb/blob/master/stb_image.h) 
+* [assimp](https://github.com/assimp/assimp)    
+* [imgui](https://github.com/ocornut/imgui)
+* [spdlog](https://github.com/gabime/spdlog)
+* [vcpkg - package manager](https://vcpkg.io/)

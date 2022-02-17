@@ -46,6 +46,8 @@ target_precompile_headers(${PROJECT_NAME}
     <exception>
     <filesystem>
     <thread>
+    <random>
+    <cmath>
 
     PRIVATE
     ${PROJECT_SOURCE_DIR}/Engine/Pch.hpp
